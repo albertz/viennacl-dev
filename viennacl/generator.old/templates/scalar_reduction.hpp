@@ -24,8 +24,13 @@
  * Kernel template for the scalar reduction operation
 */
 
+#include "viennacl/generator/symbolic_types.hpp"
+
+
 #include "viennacl/generator/templates/generator_base.hpp"
 #include "viennacl/generator/templates/profile_base.hpp"
+
+#include "viennacl/generator/utils.hpp"
 
 namespace viennacl{
 

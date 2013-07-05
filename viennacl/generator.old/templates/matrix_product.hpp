@@ -29,6 +29,7 @@
 #include "viennacl/generator/templates/generator_base.hpp"
 #include "viennacl/generator/templates/profile_base.hpp"
 
+#include "viennacl/generator/symbolic_types.hpp"
 
 namespace viennacl{
 
