@@ -30,16 +30,37 @@ namespace viennacl{
 
   namespace generator{
 
-    class generate_functor{
-        std::string & str_;
-      public:
-        generate_functor(std::string & str) : str_(str){ }
-        template<class T> void operator()(T const & t) const{ str_+=detail::generate(t); }
-    };
+    using namespace viennacl::scheduler;
 
-    std::string make_program_name(viennacl::scheduler::statement const & statement){
+    void make_program_name(statement::container_type const & array, std::size_t index, std::string & str){
+      if(array[index].op_family_==OPERATION_UNARY_TYPE_FAMILY){
+        str += detail::generate(array[index].op_type_);
+        str += '(';
+        if(array[index].lhs_type_==COMPOSITE_OPERATION_TYPE)
+          make_program_name(array, array[index].lhs_.node_index_, str);
+        else
+          str += detail::generate(array[index].lhs_type_);
+        str += ')';
+      }
+      if(array[index].op_family_==OPERATION_BINARY_TYPE_FAMILY){
+        str += '(';
+        if(array[index].lhs_type_==COMPOSITE_OPERATION_TYPE)
+          make_program_name(array, array[index].lhs_.node_index_, str);
+        else
+          str += detail::generate(array[index].lhs_type_);
+        str += detail::generate(array[index].op_type_);
+        if(array[index].rhs_type_==COMPOSITE_OPERATION_TYPE)
+          make_program_name(array, array[index].rhs_.node_index_, str);
+        else
+          str += detail::generate(array[index].rhs_type_);
+        str += ')';
+      }
+
+    }
+
+    std::string make_program_name(scheduler::statement const & statement){
       std::string res;
-      detail::for_each(statement,generate_functor(res));
+      make_program_name(statement.array(), 0, res);
       return res;
     }
 

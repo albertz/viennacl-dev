@@ -80,9 +80,8 @@ int run_benchmark()
 
   viennacl::backend::finish();
 
-  std::vector<viennacl::scheduler::statement> my_statements;
-  my_statements.push_back(viennacl::scheduler::statement(vcl_vec2, viennacl::op_assign(), vcl_vec1 + vcl_vec2));
-  std::cout << viennacl::generator::make_program_name(my_statements) << std::endl;
+  viennacl::scheduler::statement my_statement(vcl_vec2, viennacl::op_assign(), viennacl::linalg::element_abs(vcl_vec1) + vcl_vec2 + vcl_vec3);
+  std::cout << viennacl::generator::make_program_name(my_statement) << std::endl;
 
   return 0;
 }

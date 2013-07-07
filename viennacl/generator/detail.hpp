@@ -57,14 +57,8 @@ namespace viennacl{
 
 #undef MAKE_CASE
 
-        template<class Fun>
-        void for_each(viennacl::scheduler::statement const & statements, Fun const & fun){
-            for(typename viennacl::scheduler::statement::container_type::const_iterator it = statements.array().begin() ; it != statements.array().end() ; ++it){
-              fun(it->lhs_type_);
-              fun(it->op_type_);
-            }
-            fun(statements.array().back().rhs_type_);
-        }
+
+
 
     }
 
