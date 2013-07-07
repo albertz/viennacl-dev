@@ -32,41 +32,18 @@ namespace viennacl{
 
     using namespace viennacl::scheduler;
 
-    void make_program_name(statement::container_type const & array, std::size_t index, std::string & str){
-      if(array[index].op_family_==OPERATION_UNARY_TYPE_FAMILY){
-        str += detail::generate(array[index].op_type_);
-        str += '(';
-        if(array[index].lhs_type_==COMPOSITE_OPERATION_TYPE)
-          make_program_name(array, array[index].lhs_.node_index_, str);
-        else
-          str += detail::generate(array[index].lhs_type_);
-        str += ')';
-      }
-      if(array[index].op_family_==OPERATION_BINARY_TYPE_FAMILY){
-        str += '(';
-        if(array[index].lhs_type_==COMPOSITE_OPERATION_TYPE)
-          make_program_name(array, array[index].lhs_.node_index_, str);
-        else
-          str += detail::generate(array[index].lhs_type_);
-        str += detail::generate(array[index].op_type_);
-        if(array[index].rhs_type_==COMPOSITE_OPERATION_TYPE)
-          make_program_name(array, array[index].rhs_.node_index_, str);
-        else
-          str += detail::generate(array[index].rhs_type_);
-        str += ')';
-      }
-
-    }
-
     std::string make_program_name(scheduler::statement const & statement){
       std::string res;
-      make_program_name(statement.array(), 0, res);
+      detail::traverse(statement.array(), 0, detail::generation_traversal(res));
       return res;
     }
 
-    template<class ExpressionsContainer>
-    std::string make_program_string(ExpressionsContainer const & statements){
-      return "";
+    std::string make_program_string(scheduler::statement const & statement){
+      std::map<cl_mem, unsigned int> memory;
+      std::string str;
+      detail::traverse(statement.array(), 0, detail::header_generation_traversal(memory, str));
+      str.erase(str.size()-1);
+      return str;
     }
 
   }

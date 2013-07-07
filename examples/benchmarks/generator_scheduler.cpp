@@ -82,6 +82,7 @@ int run_benchmark()
 
   viennacl::scheduler::statement my_statement(vcl_vec2, viennacl::op_assign(), viennacl::linalg::element_abs(vcl_vec1) + vcl_vec2 + vcl_vec3);
   std::cout << viennacl::generator::make_program_name(my_statement) << std::endl;
+  std::cout << viennacl::generator::make_program_string(my_statement) << std::endl;
 
   return 0;
 }

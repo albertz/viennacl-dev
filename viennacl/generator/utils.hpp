@@ -19,15 +19,24 @@
 ============================================================================= */
 
 
-/** @file viennacl/generator/kernel_generation_stream.hpp
-    @brief Custom stream to handle indentation
+/** @file viennacl/generator/utils.hpp
+    @brief Internal utils
 */
 
-#include <sstream>
 
 namespace viennacl{
 
   namespace generator{
+
+    namespace utils{
+
+      template <class T>
+      inline std::string to_string ( T const t )
+      {
+        std::stringstream ss;
+        ss << t;
+        return ss.str();
+      }
 
       class kernel_generation_stream : public std::ostream{
         private:
@@ -63,6 +72,8 @@ namespace viennacl{
         private:
           unsigned int tab_count_;
       };
+
+    }
 
   }
 
