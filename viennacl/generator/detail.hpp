@@ -37,6 +37,8 @@ namespace viennacl{
 
       using namespace viennacl::scheduler;
 
+
+
       cl_mem get_handle(statement_node_type type, lhs_rhs_element element){
 #define MAKE_CASE(ref,unmap_type, raw_pointer) if(type==ref) return static_cast<unmap_type *>(element.raw_pointer)->handle().opencl_handle();
         //vector
@@ -106,80 +108,39 @@ namespace viennacl{
         }
       }
 
+      class traversal_functor{
+        public:
+          void call_on_op(operation_node_type_family, operation_node_type type) const { }
+          void call_before_expansion() const { }
+          void call_after_expansion() const { }
+      };
+
       struct symbolic_container{
           std::string scalartype_;
           std::string name_;
       };
 
-      class fetching_traversal{
-          std::string i_;
+      typedef std::map<std::size_t, detail::symbolic_container> mapping_type;
+
+      template<class Fun>
+      class expression_generation_traversal : public traversal_functor{
           utils::kernel_generation_stream & stream_;
-          std::vector<symbolic_container> const & symbolic_mapping_;
+          mapping_type const & mapping_;
+          Fun fun_;
         public:
-          fetching_traversal(utils::kernel_generation_stream & stream, std::vector<symbolic_container> const & symbolic_mapping, std::string const & i) : i_(i), stream_(stream), symbolic_mapping_(symbolic_mapping){ }
-
-          void call_on_leaf(std::size_t index, statement_node_type_family, statement_node_type type, lhs_rhs_element) const {
-            stream_ << symbolic_mapping_[index].scalartype_ << ' ' << symbolic_mapping_[index].name_ << ';' << std::endl;
-          }
-
-          void call_on_op(operation_node_type_family, operation_node_type type) const { }
-
-          void call_before_expansion() const { }
-
-          void call_after_expansion() const { }
+          expression_generation_traversal(utils::kernel_generation_stream & stream, mapping_type const & mapping, Fun const & fun) : stream_(stream), mapping_(mapping), fun_(fun){ }
+          void call_on_leaf(std::size_t index, statement_node_type_family, statement_node_type type, lhs_rhs_element) const { stream_ << fun_(mapping_.at(index)); }
+          void call_on_op(operation_node_type_family, operation_node_type type) const { stream_ << detail::generate(type); }
+          void call_before_expansion() const { stream_ << '('; }
+          void call_after_expansion() const { stream_ << ')'; }
       };
 
-      class name_generation_traversal{
-          std::string & str_;
+      class add_suffix_to_name{
+          std::string suffix_;
         public:
-          name_generation_traversal(std::string & str) : str_(str) { }
-          void call_on_leaf(std::size_t, statement_node_type_family, statement_node_type type, lhs_rhs_element) const { str_ += detail::generate(type); }
-          void call_on_op(operation_node_type_family, operation_node_type type) const { str_ += detail::generate(type); }
-          void call_before_expansion() const { str_ += '('; }
-          void call_after_expansion() const { str_ += ')'; }
+          add_suffix_to_name(std::string const & suffix) : suffix_(suffix){ }
+          std::string operator()(detail::symbolic_container const & sym) const { return sym.name_ + suffix_; }
       };
-
-
-      class header_generation_traversal{
-
-          mutable unsigned int current_arg_;
-          std::map<cl_mem, std::size_t> & memory_;
-          std::vector<symbolic_container> & symbolic_mapping_;
-          std::string & str_;
-
-
-          void header_value_generation(statement_node_type_family, statement_node_type type, lhs_rhs_element, symbolic_container & sym) const{
-            sym.scalartype_ = detail::generate_scalartype(type);
-            sym.name_ = "arg" + utils::to_string(current_arg_++);
-            str_ += sym.scalartype_ + ' '  + sym.name_ + ",";
-          }
-
-          void header_pointer_generation(statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element, symbolic_container & sym) const {
-            sym.scalartype_ = detail::generate_scalartype(type);
-            if(memory_.insert(std::make_pair(detail::get_handle(type, element), current_arg_)).second){
-              sym.name_ =  "arg" + utils::to_string(current_arg_++);
-              str_ += "__global " +  sym.scalartype_ + "* " + sym.name_ + ",";
-            }
-            sym.name_ = "arg" + utils::to_string(memory_.at(detail::get_handle(type, element)));
-          }
-
-        public:
-          header_generation_traversal(std::map<cl_mem, std::size_t> & memory, std::vector<symbolic_container> & symbolic_mapping, std::string & str) : current_arg_(0), memory_(memory), symbolic_mapping_(symbolic_mapping), str_(str) { }
-
-          void call_on_leaf(std::size_t index, statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element) const {
-            if(type_family==HOST_SCALAR_TYPE_FAMILY)
-              header_value_generation(type_family,type,element, symbolic_mapping_[index]);
-            else
-              header_pointer_generation(type_family,type,element, symbolic_mapping_[index]);
-          }
-
-          void call_on_op(operation_node_type_family, operation_node_type type) const {  }
-
-          void call_before_expansion() const { }
-
-          void call_after_expansion() const { }
-      };
-
 
     }
 

@@ -39,6 +39,7 @@ namespace viennacl{
   namespace generator{
 
     class saxpy_vector_profile : public profile_base{
+
       public:
 
         /** @brief The user constructor */
@@ -64,26 +65,28 @@ namespace viennacl{
         unsigned int group_size_;
     };
 
-    void generate_saxpy_vector(saxpy_vector_profile const & prof, utils::kernel_generation_stream& kss, std::vector<viennacl::scheduler::statement> const & statements, std::vector< std::vector<detail::symbolic_container> > const & symbolic_mappings){
+    void generate_saxpy_vector(saxpy_vector_profile const & prof, utils::kernel_generation_stream& kss, std::vector<viennacl::scheduler::statement> const & statements, std::vector<detail::mapping_type> const & mapping){
 
       kss << "for(unsigned int i = get_global_id(0) ; i < N ; i += get_global_size(0))" << std::endl;
       kss << "{" << std::endl;
       kss.inc_tab();
 
-      for(unsigned int i = 0 ; i < statements.size() ; ++i){
-        detail::traverse(statements[i].array(), 0, detail::fetching_traversal(kss,symbolic_mappings[i],"i"));
-      }
-//      //Set access indices
-//      for(std::list<tools::shared_ptr<symbolic_binary_expression_tree_infos_base> >::iterator it=expressions_.begin() ; it!=expressions_.end();++it){
-//        (*it)->access_index("i","0");
-//        (*it)->fetch(kss);
-//      }
+      //Fetches entries to registers
+      std::set<std::string> fetched;
+      for(std::vector<detail::mapping_type>::const_iterator it = mapping.begin() ; it != mapping.end() ; ++it)
+        for(detail::mapping_type::const_iterator it2 = it->begin() ; it2 != it->end() ; ++it2)
+          if(fetched.insert(it2->second.name_).second)
+            kss << it2->second.scalartype_ << " " << it2->second.name_ << "_private" << "=" << it2->second.name_ + "[i];" << std::endl;
 
-//      //Compute expressions
-//      for(std::list<tools::shared_ptr<symbolic_binary_expression_tree_infos_base> >::iterator it=expressions_.begin() ; it!=expressions_.end();++it)
-//        kss << (*it)->generate() << ";" << std::endl;
-//      for(std::list<tools::shared_ptr<symbolic_binary_expression_tree_infos_base> >::iterator it=expressions_.begin() ; it!=expressions_.end();++it)
-//        (*it)->write_back(kss);
+
+      for(std::size_t i = 0 ; i < statements.size() ; ++i){
+        detail::traverse(statements[i].array(),0,detail::expression_generation_traversal<detail::add_suffix_to_name>(kss,mapping[i],detail::add_suffix_to_name("_private")));
+        kss << ";" << std::endl;
+      }
+
+      //Writes back
+      for(std::set<std::string>::iterator it = fetched.begin() ; it != fetched.end() ; ++it)
+        kss <<  *it + "[i]" << '=' << *it << "_private" << ';' << std::endl;
 
       kss.dec_tab();
       kss << "}" << std::endl;

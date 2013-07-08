@@ -33,6 +33,53 @@ namespace viennacl{
 
   namespace generator{
 
+    namespace detail{
+
+      class name_generation_traversal : public traversal_functor{
+          std::string & str_;
+        public:
+          name_generation_traversal(std::string & str) : str_(str) { }
+          void call_on_leaf(std::size_t, statement_node_type_family, statement_node_type type, lhs_rhs_element) const { str_ += detail::generate(type); }
+          void call_on_op(operation_node_type_family, operation_node_type type) const { str_ += detail::generate(type); }
+          void call_before_expansion() const { str_ += '('; }
+          void call_after_expansion() const { str_ += ')'; }
+      };
+
+      class prototype_generation_traversal : public traversal_functor{
+
+          mutable unsigned int current_arg_;
+          std::map<cl_mem, std::size_t> & memory_;
+          mapping_type & mapping_;
+          std::string & str_;
+
+
+          void prototype_value_generation(statement_node_type_family, statement_node_type type, lhs_rhs_element, symbolic_container & sym) const{
+            sym.scalartype_ = detail::generate_scalartype(type);
+            sym.name_ = "arg" + utils::to_string(current_arg_++);
+            str_ += sym.scalartype_ + ' '  + sym.name_ + ",";
+          }
+
+          void prototype_pointer_generation(statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element, symbolic_container & sym) const {
+            sym.scalartype_ = detail::generate_scalartype(type);
+            if(memory_.insert(std::make_pair(detail::get_handle(type, element), current_arg_)).second){
+              sym.name_ =  "arg" + utils::to_string(current_arg_++);
+              str_ += "__global " +  sym.scalartype_ + "* " + sym.name_ + ",";
+            }
+            sym.name_ = "arg" + utils::to_string(memory_.at(detail::get_handle(type, element)));
+          }
+
+        public:
+          prototype_generation_traversal(std::map<cl_mem, std::size_t> & memory, mapping_type & mapping, std::string & str) : current_arg_(0), memory_(memory), mapping_(mapping), str_(str) { }
+
+          void call_on_leaf(std::size_t index, statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element) const {
+            if(type_family==HOST_SCALAR_TYPE_FAMILY)
+              prototype_value_generation(type_family,type,element, mapping_[index]);
+            else
+              prototype_pointer_generation(type_family,type,element, mapping_[index]);
+          }
+      };
+    }
+
     using namespace viennacl::scheduler;
 
     std::string make_program_name(std::vector<scheduler::statement> const & statements){
@@ -45,9 +92,7 @@ namespace viennacl{
     std::string make_program_string(std::vector<scheduler::statement> const & statements){
       std::map<cl_mem, std::size_t> memory;
       std::size_t size = statements.size();
-      std::vector< std::vector<detail::symbolic_container> > symbolic_mappings(size);
-      for(std::size_t i = 0 ; i < size ; ++i)
-        symbolic_mappings[i].resize(statements[i].array().size());
+      std::vector<detail::mapping_type> mapping(size);
 
       utils::kernel_generation_stream kss;
 
@@ -64,7 +109,7 @@ namespace viennacl{
       kss << "__kernel void kernel_0(" << std::endl;
       std::string prototype;
       for(std::size_t i = 0 ; i < size ; ++i)
-        detail::traverse(statements[i].array(), 0, detail::header_generation_traversal(memory, symbolic_mappings[i], prototype));
+        detail::traverse(statements[i].array(), 0, detail::prototype_generation_traversal(memory, mapping[i], prototype));
       prototype.erase(prototype.size()-1); //Last comma pruned
       kss << prototype << std::endl;
       kss << ")" << std::endl;
@@ -73,7 +118,7 @@ namespace viennacl{
 
       //body generation
       {
-        generate_saxpy_vector(saxpy_vector_profile(1,4,128), kss, statements, symbolic_mappings);
+        generate_saxpy_vector(saxpy_vector_profile(1,4,128), kss, statements, mapping);
       }
 
       kss.dec_tab();
