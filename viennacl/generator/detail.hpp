@@ -88,7 +88,7 @@ namespace viennacl{
           if(element.lhs_type_==COMPOSITE_OPERATION_TYPE)
             traverse(array, element.lhs_.node_index_, fun);
           else
-            fun.call_on_leaf(element.lhs_type_family_, element.lhs_type_, element.lhs_);
+            fun.call_on_leaf(index, element.lhs_type_family_, element.lhs_type_, element.lhs_);
           fun.call_after_expansion();
         }
         if(element.op_family_==OPERATION_BINARY_TYPE_FAMILY){
@@ -96,47 +96,87 @@ namespace viennacl{
           if(element.lhs_type_==COMPOSITE_OPERATION_TYPE)
             traverse(array, element.lhs_.node_index_, fun);
           else
-            fun.call_on_leaf(element.lhs_type_family_, element.lhs_type_, element.lhs_);
+            fun.call_on_leaf(index, element.lhs_type_family_, element.lhs_type_, element.lhs_);
           fun.call_on_op(element.op_family_, element.op_type_);
           if(element.rhs_type_==COMPOSITE_OPERATION_TYPE)
             traverse(array, element.rhs_.node_index_, fun);
           else
-            fun.call_on_leaf(element.rhs_type_family_, element.rhs_type_, element.rhs_);
+            fun.call_on_leaf(index, element.rhs_type_family_, element.rhs_type_, element.rhs_);
           fun.call_after_expansion();
         }
       }
 
-      class generation_traversal{
+      struct symbolic_container{
+          std::string scalartype_;
+          std::string name_;
+      };
+
+      class fetching_traversal{
+          std::string i_;
+          utils::kernel_generation_stream & stream_;
+          std::vector<symbolic_container> const & symbolic_mapping_;
+        public:
+          fetching_traversal(utils::kernel_generation_stream & stream, std::vector<symbolic_container> const & symbolic_mapping, std::string const & i) : i_(i), stream_(stream), symbolic_mapping_(symbolic_mapping){ }
+
+          void call_on_leaf(std::size_t index, statement_node_type_family, statement_node_type type, lhs_rhs_element) const {
+            stream_ << symbolic_mapping_[index].scalartype_ << ' ' << symbolic_mapping_[index].name_ << ';' << std::endl;
+          }
+
+          void call_on_op(operation_node_type_family, operation_node_type type) const { }
+
+          void call_before_expansion() const { }
+
+          void call_after_expansion() const { }
+      };
+
+      class name_generation_traversal{
           std::string & str_;
         public:
-          generation_traversal(std::string & str) : str_(str) { }
-          void call_on_leaf(statement_node_type_family, statement_node_type type, lhs_rhs_element) const { str_ += detail::generate(type); }
+          name_generation_traversal(std::string & str) : str_(str) { }
+          void call_on_leaf(std::size_t, statement_node_type_family, statement_node_type type, lhs_rhs_element) const { str_ += detail::generate(type); }
           void call_on_op(operation_node_type_family, operation_node_type type) const { str_ += detail::generate(type); }
           void call_before_expansion() const { str_ += '('; }
           void call_after_expansion() const { str_ += ')'; }
       };
 
+
       class header_generation_traversal{
-          mutable unsigned int current_;
-          std::map<cl_mem, unsigned int> & memory_;
+
+          mutable unsigned int current_arg_;
+          std::map<cl_mem, std::size_t> & memory_;
+          std::vector<symbolic_container> & symbolic_mapping_;
           std::string & str_;
-          void header_value_generation(statement_node_type_family, statement_node_type type, lhs_rhs_element) const{
-            str_ += detail::generate_scalartype(type) + ' ' + "arg" + utils::to_string(current_++) + ",";
+
+
+          void header_value_generation(statement_node_type_family, statement_node_type type, lhs_rhs_element, symbolic_container & sym) const{
+            sym.scalartype_ = detail::generate_scalartype(type);
+            sym.name_ = "arg" + utils::to_string(current_arg_++);
+            str_ += sym.scalartype_ + ' '  + sym.name_ + ",";
           }
-          void header_pointer_generation(statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element) const {
-            if(memory_.insert(std::make_pair(detail::get_handle(type, element), current_)).second)
-              str_ += "__global " + detail::generate_scalartype(type) + "* arg" + utils::to_string(current_++) + ",";
+
+          void header_pointer_generation(statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element, symbolic_container & sym) const {
+            sym.scalartype_ = detail::generate_scalartype(type);
+            if(memory_.insert(std::make_pair(detail::get_handle(type, element), current_arg_)).second){
+              sym.name_ =  "arg" + utils::to_string(current_arg_++);
+              str_ += "__global " +  sym.scalartype_ + "* " + sym.name_ + ",";
+            }
+            sym.name_ = "arg" + utils::to_string(memory_.at(detail::get_handle(type, element)));
           }
+
         public:
-          header_generation_traversal(std::map<cl_mem, unsigned int> & memory, std::string & str) : current_(0), memory_(memory), str_(str) { }
-          void call_on_leaf(statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element) const {
+          header_generation_traversal(std::map<cl_mem, std::size_t> & memory, std::vector<symbolic_container> & symbolic_mapping, std::string & str) : current_arg_(0), memory_(memory), symbolic_mapping_(symbolic_mapping), str_(str) { }
+
+          void call_on_leaf(std::size_t index, statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element) const {
             if(type_family==HOST_SCALAR_TYPE_FAMILY)
-              header_value_generation(type_family,type,element);
+              header_value_generation(type_family,type,element, symbolic_mapping_[index]);
             else
-              header_pointer_generation(type_family,type,element);
+              header_pointer_generation(type_family,type,element, symbolic_mapping_[index]);
           }
+
           void call_on_op(operation_node_type_family, operation_node_type type) const {  }
+
           void call_before_expansion() const { }
+
           void call_after_expansion() const { }
       };
 

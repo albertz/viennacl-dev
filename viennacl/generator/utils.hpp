@@ -23,6 +23,7 @@
     @brief Internal utils
 */
 
+#include <sstream>
 
 namespace viennacl{
 
@@ -40,37 +41,37 @@ namespace viennacl{
 
       class kernel_generation_stream : public std::ostream{
         private:
+
           class kgenstream : public std::stringbuf{
             public:
-              kgenstream(std::ostream& final_destination
-                         ,unsigned int const & tab_count) : final_destination_(final_destination)
-              ,tab_count_(tab_count){ }
-              ~kgenstream() {  pubsync(); }
+              kgenstream(std::ostringstream& oss,unsigned int const & tab_count) : oss_(oss), tab_count_(tab_count){ }
               int sync() {
                 for(unsigned int i=0 ; i<tab_count_;++i)
-                  final_destination_ << '\t';
-                final_destination_ << str();
+                  oss_ << '\t';
+                oss_ << str();
                 str("");
-                return !final_destination_;
+                return !oss_;
               }
+              ~kgenstream() {  pubsync(); }
             private:
-              std::ostream& final_destination_;
+              std::ostream& oss_;
               unsigned int const & tab_count_;
           };
 
         public:
-          kernel_generation_stream(std::ostream& final_destination) : std::ostream(new kgenstream(final_destination,tab_count_))
-          , tab_count_(0){ }
-          ~kernel_generation_stream(){ delete rdbuf(); }
-          std::string str(){
-            return static_cast<std::stringbuf*>(rdbuf())->str();
-          }
+          kernel_generation_stream() : std::ostream(new kgenstream(oss,tab_count_)), tab_count_(0){ }
+
+          std::string str(){ return oss.str(); }
 
           void inc_tab(){ ++tab_count_; }
+
           void dec_tab(){ --tab_count_; }
+
+          ~kernel_generation_stream(){ delete rdbuf(); }
 
         private:
           unsigned int tab_count_;
+          std::ostringstream oss;
       };
 
     }
