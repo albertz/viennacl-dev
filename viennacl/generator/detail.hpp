@@ -23,6 +23,8 @@
     @brief Internal upper layer to the scheduler
 */
 
+#include <set>
+
 #include "CL/cl.h"
 
 #include "viennacl/scheduler/forwards.h"
@@ -37,7 +39,47 @@ namespace viennacl{
 
       using namespace viennacl::scheduler;
 
+      class symbolic_container{
+          friend class prototype_generation_traversal;
+        private:
+          statement_node_type_family type_family_;
+          statement_node_type type_;
+          lhs_rhs_element element_;
+          std::string scalartype_;
+          std::string name_;
+          std::string access_name_;
+        public:
+          void fetch(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
+            if(fetched.find(name_)==fetched.end()){
+              std::string new_access_name = name_ + "_private";
+              stream << scalartype_ << " " << new_access_name << " = " << generate() << ';' << std::endl;
+              access_name_ = new_access_name;
+              fetched.insert(name_);
+            }
+          }
 
+          void write_back(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
+            if(fetched.find(name_)!=fetched.end()){
+              std::string old_access_name = access_name_;
+              access_name_.clear();
+              stream << generate() << " = " << old_access_name << ';' << std::endl;
+              fetched.erase(name_);
+            }
+          }
+
+          std::string generate() const{
+            if(!access_name_.empty())
+              return access_name_;
+            if(type_family_==HOST_SCALAR_TYPE_FAMILY)
+              return name_;
+            if(type_family_==SCALAR_TYPE_FAMILY)
+              return '*'+name_;
+            return name_+"[i]";
+          }
+
+      };
+
+      typedef std::map<std::size_t, detail::symbolic_container> mapping_type;
 
       cl_mem get_handle(statement_node_type type, lhs_rhs_element element){
 #define MAKE_CASE(ref,unmap_type, raw_pointer) if(type==ref) return static_cast<unmap_type *>(element.raw_pointer)->handle().opencl_handle();
@@ -115,31 +157,72 @@ namespace viennacl{
           void call_after_expansion() const { }
       };
 
-      struct symbolic_container{
-          std::string scalartype_;
-          std::string name_;
-      };
 
-      typedef std::map<std::size_t, detail::symbolic_container> mapping_type;
 
-      template<class Fun>
       class expression_generation_traversal : public traversal_functor{
           utils::kernel_generation_stream & stream_;
           mapping_type const & mapping_;
-          Fun fun_;
         public:
-          expression_generation_traversal(utils::kernel_generation_stream & stream, mapping_type const & mapping, Fun const & fun) : stream_(stream), mapping_(mapping), fun_(fun){ }
-          void call_on_leaf(std::size_t index, statement_node_type_family, statement_node_type type, lhs_rhs_element) const { stream_ << fun_(mapping_.at(index)); }
-          void call_on_op(operation_node_type_family, operation_node_type type) const { stream_ << detail::generate(type); }
-          void call_before_expansion() const { stream_ << '('; }
-          void call_after_expansion() const { stream_ << ')'; }
+          expression_generation_traversal(utils::kernel_generation_stream & stream, mapping_type const & mapping) : stream_(stream), mapping_(mapping){ }
+          void call_on_leaf(std::size_t index, statement_node_type_family, statement_node_type type, lhs_rhs_element) const {
+            stream_ << mapping_.at(index).generate();
+          }
+          void call_on_op(operation_node_type_family, operation_node_type type) const {
+            stream_ << detail::generate(type);
+          }
+          void call_before_expansion() const {
+            stream_ << '(';
+          }
+          void call_after_expansion() const {
+            stream_ << ')';
+          }
       };
 
-      class add_suffix_to_name{
-          std::string suffix_;
+      class name_generation_traversal : public traversal_functor{
+          std::string & str_;
         public:
-          add_suffix_to_name(std::string const & suffix) : suffix_(suffix){ }
-          std::string operator()(detail::symbolic_container const & sym) const { return sym.name_ + suffix_; }
+          name_generation_traversal(std::string & str) : str_(str) { }
+          void call_on_leaf(std::size_t, statement_node_type_family, statement_node_type type, lhs_rhs_element) const { str_ += detail::generate(type); }
+          void call_on_op(operation_node_type_family, operation_node_type type) const { str_ += detail::generate(type); }
+          void call_before_expansion() const { str_ += '('; }
+          void call_after_expansion() const { str_ += ')'; }
+      };
+
+      class prototype_generation_traversal : public traversal_functor{
+
+          mutable unsigned int current_arg_;
+          std::map<cl_mem, std::size_t> & memory_;
+          mapping_type & mapping_;
+          std::string & str_;
+
+
+          void prototype_value_generation(statement_node_type_family, statement_node_type type, lhs_rhs_element, symbolic_container & sym) const{
+            sym.name_ = "arg" + utils::to_string(current_arg_++);
+            str_ += sym.scalartype_ + ' '  + sym.name_ + ",";
+          }
+
+          void prototype_pointer_generation(statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element, symbolic_container & sym) const {
+            if(memory_.insert(std::make_pair(detail::get_handle(type, element), current_arg_)).second){
+              sym.name_ =  "arg" + utils::to_string(current_arg_++);
+              str_ += "__global " +  sym.scalartype_ + "* " + sym.name_ + ",";
+            }
+            else
+              sym.name_ = "arg" + utils::to_string(memory_.at(detail::get_handle(type, element)));
+          }
+
+        public:
+          prototype_generation_traversal(std::map<cl_mem, std::size_t> & memory, mapping_type & mapping, std::string & str) : current_arg_(0), memory_(memory), mapping_(mapping), str_(str) { }
+
+          void call_on_leaf(std::size_t index, statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element) const {
+            mapping_[index].scalartype_ = detail::generate_scalartype(type);
+            mapping_[index].type_ = type;
+            mapping_[index].type_family_ = type_family;
+            mapping_[index].element_ = element;
+            if(type_family==HOST_SCALAR_TYPE_FAMILY)
+              prototype_value_generation(type_family,type,element, mapping_[index]);
+            else
+              prototype_pointer_generation(type_family,type,element, mapping_[index]);
+          }
       };
 
     }
