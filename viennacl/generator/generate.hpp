@@ -39,7 +39,7 @@ namespace viennacl{
     std::string make_program_name(std::vector<scheduler::statement> const & statements){
       std::string res;
       for(std::vector<scheduler::statement>::const_iterator it = statements.begin() ; it != statements.end() ; ++it)
-        detail::traverse(it->array(), 0, detail::name_generation_traversal(res));
+        detail::traverse(it->array(), detail::name_generation_traversal(res));
       return res;
     }
 
@@ -63,7 +63,7 @@ namespace viennacl{
       kss << "__kernel void kernel_0(" << std::endl;
       std::string prototype;
       for(std::size_t i = 0 ; i < size ; ++i)
-        detail::traverse(statements[i].array(), 0, detail::prototype_generation_traversal(memory, mapping[i], prototype));
+        detail::traverse(statements[i].array(), detail::prototype_generation_traversal(memory, mapping[i], prototype),true);
       prototype.erase(prototype.size()-1); //Last comma pruned
       kss << prototype << std::endl;
       kss << ")" << std::endl;
@@ -71,9 +71,7 @@ namespace viennacl{
       kss.inc_tab();
 
       //body generation
-      {
-        generate_saxpy_vector(saxpy_vector_profile(1,4,128), kss, statements, mapping);
-      }
+      generate_saxpy_vector(saxpy_vector_profile(1,4,128), kss, statements, mapping);
 
       kss.dec_tab();
       kss << "}" << std::endl;

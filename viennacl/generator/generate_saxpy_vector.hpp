@@ -79,7 +79,7 @@ namespace viennacl{
 
 
       for(std::size_t i = 0 ; i < statements.size() ; ++i){
-        detail::traverse(statements[i].array(),0,detail::expression_generation_traversal(stream,mapping[i]));
+        detail::traverse(statements[i].array(), detail::expression_generation_traversal(stream,mapping[i]), true);
         stream << ";" << std::endl;
       }
 

@@ -39,20 +39,79 @@ namespace viennacl{
 
       using namespace viennacl::scheduler;
 
+      class symbolic_container;
+
+      template<class TraversalFunctor>
+      void traverse(statement::container_type const & array, TraversalFunctor const & fun, bool use_extended_leaf = false, std::size_t index = 0);
+      void generate(utils::kernel_generation_stream & stream, symbolic_container const & s);
+      const char * generate(operation_node_type arg);
+      const char * generate(statement_node_type arg);
+
+      typedef std::map<std::size_t, detail::symbolic_container> mapping_type;
+
+      class traversal_functor{
+        public:
+          void call_on_op(operation_node_type_family, operation_node_type type) const { }
+          void call_before_expansion() const { }
+          void call_after_expansion() const { }
+      };
+
+      class expression_generation_traversal : public traversal_functor{
+
+        private:
+          utils::kernel_generation_stream & stream_;
+          mapping_type const & mapping_;
+
+        public:
+          expression_generation_traversal(utils::kernel_generation_stream & stream, mapping_type const & mapping) : stream_(stream), mapping_(mapping){ }
+          void call_on_extended_leaf(std::size_t index, statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element, statement::container_type const &, std::size_t) const {
+            call_on_leaf(index,type_family,type,element);
+          }
+          void call_on_leaf(std::size_t index, statement_node_type_family, statement_node_type, lhs_rhs_element) const {
+            generate(stream_,mapping_.at(index));
+          }
+          void call_on_op(operation_node_type_family, operation_node_type type) const {
+            stream_ << detail::generate(type);
+          }
+          void call_before_expansion() const {
+            stream_ << '(';
+          }
+          void call_after_expansion() const {
+            stream_ << ')';
+          }
+      };
+
       class symbolic_container{
           friend class prototype_generation_traversal;
+
         private:
           statement_node_type_family type_family_;
           statement_node_type type_;
+
+          std::size_t access_index_;
+          statement::container_type const * array_;
+          mapping_type const * mapping_;
+
           lhs_rhs_element element_;
           std::string scalartype_;
           std::string name_;
           std::string access_name_;
+
+        private:
+          void offset(utils::kernel_generation_stream & stream) const {
+            if(array_==NULL)
+              stream << "i";
+            else
+              traverse(*array_, expression_generation_traversal(stream,*mapping_), false, access_index_);
+          }
+
         public:
           void fetch(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
             if(fetched.find(name_)==fetched.end()){
               std::string new_access_name = name_ + "_private";
-              stream << scalartype_ << " " << new_access_name << " = " << generate() << ';' << std::endl;
+              stream << scalartype_ << " " << new_access_name << " = ";
+              generate(stream);
+              stream << ';' << std::endl;
               access_name_ = new_access_name;
               fetched.insert(name_);
             }
@@ -62,24 +121,25 @@ namespace viennacl{
             if(fetched.find(name_)!=fetched.end()){
               std::string old_access_name = access_name_;
               access_name_.clear();
-              stream << generate() << " = " << old_access_name << ';' << std::endl;
+              generate(stream);
+              stream << " = " << old_access_name << ';' << std::endl;
               fetched.erase(name_);
             }
           }
 
-          std::string generate() const{
+          void generate(utils::kernel_generation_stream & stream) const{
             if(!access_name_.empty())
-              return access_name_;
+              stream << access_name_;
             if(type_family_==HOST_SCALAR_TYPE_FAMILY)
-              return name_;
+              stream << name_;
             if(type_family_==SCALAR_TYPE_FAMILY)
-              return '*'+name_;
-            return name_+"[i]";
+              stream << '*' << name_;
+            stream << name_ << "[" ;
+            offset(stream);
+            stream << "]";
           }
-
       };
 
-      typedef std::map<std::size_t, detail::symbolic_container> mapping_type;
 
       cl_mem get_handle(statement_node_type type, lhs_rhs_element element){
 #define MAKE_CASE(ref,unmap_type, raw_pointer) if(type==ref) return static_cast<unmap_type *>(element.raw_pointer)->handle().opencl_handle();
@@ -97,6 +157,10 @@ namespace viennacl{
 
         throw "unrecognized type";
 #undef MAKE_CASE
+      }
+
+      void generate(utils::kernel_generation_stream & stream, symbolic_container const & s){
+        s.generate(stream);
       }
 
 #define MAKE_CASE(ref,str) if(arg==ref) return str;
@@ -124,64 +188,45 @@ namespace viennacl{
 #undef MAKE_CASE
 
       template<class TraversalFunctor>
-      void traverse(statement::container_type const & array, std::size_t index, TraversalFunctor const & fun){
+      void traverse(statement::container_type const & array, TraversalFunctor const & fun, bool use_extended_leaf = false, std::size_t index = 0){
         statement::value_type const & element = array[index];
         if(element.op_family_==OPERATION_UNARY_TYPE_FAMILY){
           fun.call_on_op(element.op_family_, element.op_type_);
           fun.call_before_expansion();
           if(element.lhs_type_==COMPOSITE_OPERATION_TYPE)
-            traverse(array, element.lhs_.node_index_, fun);
+            traverse(array, fun, use_extended_leaf, element.lhs_.node_index_);
           else
             fun.call_on_leaf(index, element.lhs_type_family_, element.lhs_type_, element.lhs_);
           fun.call_after_expansion();
         }
         if(element.op_family_==OPERATION_BINARY_TYPE_FAMILY){
           fun.call_before_expansion();
-          if(element.lhs_type_==COMPOSITE_OPERATION_TYPE)
-            traverse(array, element.lhs_.node_index_, fun);
-          else
-            fun.call_on_leaf(index, element.lhs_type_family_, element.lhs_type_, element.lhs_);
-          fun.call_on_op(element.op_family_, element.op_type_);
-          if(element.rhs_type_==COMPOSITE_OPERATION_TYPE)
-            traverse(array, element.rhs_.node_index_, fun);
-          else
-            fun.call_on_leaf(index, element.rhs_type_family_, element.rhs_type_, element.rhs_);
-          fun.call_after_expansion();
+          if(use_extended_leaf && element.op_type_==OPERATION_BINARY_ACCESS){
+            fun.call_on_extended_leaf(index, element.lhs_type_family_, element.lhs_type_, element.lhs_, array, element.rhs_.node_index_);
+          }
+          else{
+            if(element.lhs_type_==COMPOSITE_OPERATION_TYPE)
+              traverse(array, fun, use_extended_leaf, element.lhs_.node_index_);
+            else
+              fun.call_on_leaf(index, element.lhs_type_family_, element.lhs_type_, element.lhs_);
+            fun.call_on_op(element.op_family_, element.op_type_);
+            if(element.rhs_type_==COMPOSITE_OPERATION_TYPE)
+              traverse(array, fun, use_extended_leaf, element.rhs_.node_index_);
+            else
+              fun.call_on_leaf(index, element.rhs_type_family_, element.rhs_type_, element.rhs_);
+            fun.call_after_expansion();
+          }
         }
       }
 
-      class traversal_functor{
-        public:
-          void call_on_op(operation_node_type_family, operation_node_type type) const { }
-          void call_before_expansion() const { }
-          void call_after_expansion() const { }
-      };
 
 
-
-      class expression_generation_traversal : public traversal_functor{
-          utils::kernel_generation_stream & stream_;
-          mapping_type const & mapping_;
-        public:
-          expression_generation_traversal(utils::kernel_generation_stream & stream, mapping_type const & mapping) : stream_(stream), mapping_(mapping){ }
-          void call_on_leaf(std::size_t index, statement_node_type_family, statement_node_type type, lhs_rhs_element) const {
-            stream_ << mapping_.at(index).generate();
-          }
-          void call_on_op(operation_node_type_family, operation_node_type type) const {
-            stream_ << detail::generate(type);
-          }
-          void call_before_expansion() const {
-            stream_ << '(';
-          }
-          void call_after_expansion() const {
-            stream_ << ')';
-          }
-      };
 
       class name_generation_traversal : public traversal_functor{
           std::string & str_;
         public:
           name_generation_traversal(std::string & str) : str_(str) { }
+          void call_on_extended_leaf(std::size_t index, statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element, statement::container_type const &, std::size_t) const { call_on_leaf(index,type_family,type,element); }
           void call_on_leaf(std::size_t, statement_node_type_family, statement_node_type type, lhs_rhs_element) const { str_ += detail::generate(type); }
           void call_on_op(operation_node_type_family, operation_node_type type) const { str_ += detail::generate(type); }
           void call_before_expansion() const { str_ += '('; }
@@ -212,6 +257,13 @@ namespace viennacl{
 
         public:
           prototype_generation_traversal(std::map<cl_mem, std::size_t> & memory, mapping_type & mapping, std::string & str) : current_arg_(0), memory_(memory), mapping_(mapping), str_(str) { }
+
+          void call_on_extended_leaf(std::size_t index, statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element, statement::container_type const & array, std::size_t access_index) const {
+            mapping_[index].array_ = &array;
+            mapping_[index].mapping_ = &mapping_;
+            mapping_[index].access_index_ = access_index;
+            call_on_leaf(index, type_family, type, element);
+          }
 
           void call_on_leaf(std::size_t index, statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element) const {
             mapping_[index].scalartype_ = detail::generate_scalartype(type);

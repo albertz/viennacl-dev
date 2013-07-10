@@ -69,7 +69,9 @@ namespace viennacl
       OPERATION_BINARY_PROD_TYPE,
       OPERATION_BINARY_MULT_TYPE,    // scalar times vector/matrix
       OPERATION_BINARY_ELEMENT_MULT_TYPE,
-      OPERATION_BINARY_ELEMENT_DIV_TYPE
+      OPERATION_BINARY_ELEMENT_DIV_TYPE,
+      OPERATION_BINARY_ACCESS // Allows complex access on datastructures
+
     };
 
 
