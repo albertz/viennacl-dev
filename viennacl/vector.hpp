@@ -36,64 +36,76 @@
 
 namespace viennacl
 {
+
   //
-  // Initializer types
+  // Symbolic types
   //
-  /** @brief Represents a vector consisting of 1 at a given index and zeros otherwise. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
-  template <typename SCALARTYPE>
-  class unit_vector
+
+  template<typename SCALARTYPE>
+  class symbolic_vector_base
   {
     public:
       typedef vcl_size_t        size_type;
 
-      unit_vector(size_type s, size_type ind) : size_(s), index_(ind)
+      symbolic_vector_base(size_type s) : size_(s){ }
+
+      size_type size() const { return size_; }
+
+    private:
+      size_type size_;
+  };
+
+  /** @brief Represents a vector consisting of 1 at a given index and zeros otherwise. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
+  template <typename SCALARTYPE>
+  class unit_vector : public symbolic_vector_base<SCALARTYPE>
+  {
+      typedef symbolic_vector_base<SCALARTYPE> base_type;
+    public:
+      typedef typename base_type::size_type size_type;
+
+      unit_vector(size_type s, size_type ind) : base_type(s), index_(ind)
       {
         assert( (ind < s) && bool("Provided index out of range!") );
       }
 
-      size_type size() const { return size_; }
       size_type index() const { return index_; }
 
     private:
-      size_type size_;
       size_type index_;
   };
 
 
   /** @brief Represents a vector consisting of zeros only. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
   template <typename SCALARTYPE>
-  class zero_vector
+  class zero_vector : public symbolic_vector_base<SCALARTYPE>
   {
+      typedef symbolic_vector_base<SCALARTYPE> base_type;
     public:
-      typedef vcl_size_t        size_type;
+      typedef typename base_type::size_type size_type;
       typedef SCALARTYPE        const_reference;
 
-      zero_vector(size_type s) : size_(s) {}
+      zero_vector(size_type s) : base_type(s) {}
 
-      size_type size() const { return size_; }
       const_reference operator()(size_type /*i*/) const { return 0; }
       const_reference operator[](size_type /*i*/) const { return 0; }
-
-    private:
-      size_type size_;
   };
 
 
   /** @brief Represents a vector consisting of scalars 's' only, i.e. v[i] = s for all i. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
   template <typename SCALARTYPE>
-  class scalar_vector
+  class scalar_vector : public symbolic_vector_base<SCALARTYPE>
   {
+      typedef symbolic_vector_base<SCALARTYPE> base_type;
     public:
-      typedef vcl_size_t         size_type;
+      typedef typename base_type::size_type size_type;
       typedef SCALARTYPE const & const_reference;
 
-      scalar_vector(size_type s, SCALARTYPE val) : size_(s), value_(val) {}
+      scalar_vector(size_type s, SCALARTYPE val) : base_type(s), value_(val) {}
 
 #ifdef VIENNACL_WITH_OPENCL
-      scalar_vector(size_type s, SCALARTYPE val, viennacl::ocl::context const & ctx) : size_(s), value_(val), ctx_(&ctx) {}
+      scalar_vector(size_type s, SCALARTYPE val, viennacl::ocl::context const & ctx) : base_type(s), value_(val), ctx_(&ctx) {}
 #endif
 
-      size_type size() const { return size_; }
       const_reference operator()(size_type /*i*/) const { return value_; }
       const_reference operator[](size_type /*i*/) const { return value_; }
 
@@ -102,7 +114,6 @@ namespace viennacl
 #endif
 
     private:
-      size_type size_;
       SCALARTYPE value_;
 #ifdef VIENNACL_WITH_OPENCL
       viennacl::ocl::context const * ctx_;
@@ -619,6 +630,29 @@ namespace viennacl
       }
 
       ///////////////////////////// Matrix Vector interaction end ///////////////////////////////////
+
+      //
+      // operator access
+      //
+      template<class LHS, class RHS, class OP>
+      vector_expression< const self_type
+                       , const vector_expression<LHS, RHS, OP>
+                       , viennacl::op_access >
+      operator()(vector_expression<LHS, RHS, OP> const & proxy)
+      {
+        assert(proxy.size() == size() && bool("Incompatible vector sizes!"));
+        return   vector_expression< const self_type
+                                  , const vector_expression<LHS, RHS, OP>
+                                  , viennacl::op_access >(*this, proxy);
+      }
+
+      template<typename T>
+      vector_expression< const self_type, const vector_base<T>, viennacl::op_access >
+      operator()(vector_base<T> const & vec)
+      {
+        assert(vec.size() == size() && bool("Incompatible vector sizes!"));
+        return   vector_expression< const self_type, const vector_base<T>, viennacl::op_access >(*this, vec);
+      }
 
 
       //read-write access to an element of the vector
@@ -1476,6 +1510,7 @@ namespace viennacl
   }
 
 
+
   //
   // operator +
   //
@@ -1506,15 +1541,16 @@ namespace viennacl
   * @param vec     Right hand side vector (also -range and -slice is allowed)
   */
   template <typename LHS, typename RHS, typename OP, typename T>
-  vector_expression< const vector_expression<LHS, RHS, OP>,
-                     const vector_base<T>,
-                     viennacl::op_add>
+  typename viennacl::enable_if<viennacl::is_any_vector<T>::value,
+                     vector_expression< const vector_expression<LHS, RHS, OP>,
+                     const T,
+                     viennacl::op_add> >::type
   operator + (vector_expression<LHS, RHS, OP> const & proxy,
-              vector_base<T> const & vec)
+              T const & vec)
   {
     assert(proxy.size() == vec.size() && bool("Incompatible vector sizes!"));
     return vector_expression< const vector_expression<LHS, RHS, OP>,
-                              const vector_base<T>,
+                              const T,
                               viennacl::op_add>(proxy, vec);
   }
 
@@ -1524,25 +1560,28 @@ namespace viennacl
   * @param vec     Right hand side vector (also -range and -slice is allowed)
   */
   template <typename T, typename LHS, typename RHS, typename OP>
-  vector_expression< const vector_base<T>,
-                     const vector_expression<LHS, RHS, OP>,
-                     viennacl::op_add>
-  operator + (vector_base<T> const & vec,
+  typename viennacl::enable_if<viennacl::is_any_vector<T>::value,
+                              vector_expression< const T,
+                                                 const vector_expression<LHS, RHS, OP>,
+                                                 viennacl::op_add> >::type
+  operator + (T const & vec,
               vector_expression<LHS, RHS, OP> const & proxy)
   {
     assert(proxy.size() == vec.size() && bool("Incompatible vector sizes!"));
-    return vector_expression< const vector_base<T>,
+    return vector_expression< const T,
                               const vector_expression<LHS, RHS, OP>,
                               viennacl::op_add>(vec, proxy);
   }
 
   /** @brief Returns an expression template object for adding up two vectors, i.e. v1 + v2
   */
-  template <typename T>
-  vector_expression< const vector_base<T>, const vector_base<T>, op_add>
-  operator + (const vector_base<T> & v1, const vector_base<T> & v2)
+  template <typename T, class U>
+  typename viennacl::enable_if<viennacl::is_any_vector<T>::value
+                             &&viennacl::is_any_vector<U>::value,
+                             vector_expression< const T, const U, op_add> >::type
+  operator + (const T & v1, const U & v2)
   {
-    return vector_expression< const vector_base<T>, const vector_base<T>, op_add>(v1, v2);
+    return vector_expression< const T, const U, op_add>(v1, v2);
   }
 
 

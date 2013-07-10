@@ -106,6 +106,9 @@ namespace viennacl
   struct op_tan {};
   struct op_tanh {};
 
+  /** @brief A tag class representing modified access to one vector */
+  struct op_access {};
+
   /** @brief A tag class representing inner products of two vectors */
   struct op_inner_prod;
 
@@ -142,6 +145,9 @@ namespace viennacl
 
   template<class SCALARTYPE, unsigned int ALIGNMENT>
   class const_vector_iterator;
+
+  template<typename SCALARTYPE>
+  class symbolic_vector_base;
 
   template <typename SCALARTYPE>
   class zero_vector;

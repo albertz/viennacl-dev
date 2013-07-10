@@ -26,6 +26,7 @@
 #include <fstream>
 #include <sstream>
 #include "viennacl/forwards.h"
+#include "viennacl/meta/is_base_of.hpp"
 
 #ifdef VIENNACL_WITH_OPENCL
 #include "CL/cl.h"
@@ -96,6 +97,18 @@ namespace viennacl
     //{
     //  enum { value = (is_scalar<T>::value || is_cpu_scalar<T>::value || is_flip_sign_scalar<T>::value )};
     //};
+
+    //
+    // is_any_vector : checks for either vector_base or symbolic_vector_base
+    //
+    template<typename T>
+    struct is_any_vector
+    {
+        enum { value = is_base_of<vector_base<float>, T>::value
+                      ||is_base_of<symbolic_vector_base<float>, T>::value
+                      ||is_base_of<vector_base<double>, T>::value
+                      ||is_base_of<symbolic_vector_base<double>, T>::value };
+    };
 
     //
     // is_row_major

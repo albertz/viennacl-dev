@@ -107,20 +107,20 @@ namespace viennacl{
 
         public:
           void fetch(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
+            std::string new_access_name = name_ + "_private";
             if(fetched.find(name_)==fetched.end()){
-              std::string new_access_name = name_ + "_private";
               stream << scalartype_ << " " << new_access_name << " = ";
               generate(stream);
               stream << ';' << std::endl;
-              access_name_ = new_access_name;
               fetched.insert(name_);
             }
+            access_name_ = new_access_name;
           }
 
           void write_back(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
+            std::string old_access_name = access_name_;
+            access_name_.clear();
             if(fetched.find(name_)!=fetched.end()){
-              std::string old_access_name = access_name_;
-              access_name_.clear();
               generate(stream);
               stream << " = " << old_access_name << ';' << std::endl;
               fetched.erase(name_);
@@ -130,13 +130,15 @@ namespace viennacl{
           void generate(utils::kernel_generation_stream & stream) const{
             if(!access_name_.empty())
               stream << access_name_;
-            if(type_family_==HOST_SCALAR_TYPE_FAMILY)
+            else if(type_family_==HOST_SCALAR_TYPE_FAMILY)
               stream << name_;
-            if(type_family_==SCALAR_TYPE_FAMILY)
+            else if(type_family_==SCALAR_TYPE_FAMILY)
               stream << '*' << name_;
-            stream << name_ << "[" ;
-            offset(stream);
-            stream << "]";
+            else{
+              stream << name_ << "[" ;
+              offset(stream);
+              stream << "]";
+            }
           }
       };
 
@@ -152,8 +154,11 @@ namespace viennacl{
 
       std::string generate_scalartype(statement_node_type type){
 #define MAKE_CASE(ref, scalartype) if(type==ref) return scalartype;
-        //vector
+        //vector:
         MAKE_CASE(VECTOR_FLOAT_TYPE, "float");
+
+        //symbolic vector:
+        MAKE_CASE(SYMBOLIC_VECTOR_FLOAT_TYPE, "float");
 
         throw "unrecognized type";
 #undef MAKE_CASE
@@ -189,6 +194,7 @@ namespace viennacl{
 
       template<class TraversalFunctor>
       void traverse(statement::container_type const & array, TraversalFunctor const & fun, bool use_extended_leaf = false, std::size_t index = 0){
+        std::cout << index << std::endl;
         statement::value_type const & element = array[index];
         if(element.op_family_==OPERATION_UNARY_TYPE_FAMILY){
           fun.call_on_op(element.op_family_, element.op_type_);
@@ -271,6 +277,8 @@ namespace viennacl{
             mapping_[index].type_family_ = type_family;
             mapping_[index].element_ = element;
             if(type_family==HOST_SCALAR_TYPE_FAMILY)
+              prototype_value_generation(type_family,type,element, mapping_[index]);
+            else if(type_family==SYMBOLIC_VECTOR_TYPE_FAMILY)
               prototype_value_generation(type_family,type,element, mapping_[index]);
             else
               prototype_pointer_generation(type_family,type,element, mapping_[index]);
