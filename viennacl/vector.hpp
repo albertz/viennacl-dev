@@ -42,12 +42,12 @@ namespace viennacl
   //
 
   template<typename SCALARTYPE>
-  class symbolic_vector_base
+  class vector_initializer_base
   {
     protected:
       typedef vcl_size_t        size_type;
-      symbolic_vector_base(size_type s, std::size_t i, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(true,i)), value_(v){ }
-      symbolic_vector_base(size_type s, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(false,0)), value_(v){ }
+      vector_initializer_base(size_type s, std::size_t i, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(true,i)), value_(v){ }
+      vector_initializer_base(size_type s, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(false,0)), value_(v){ }
     public:
       typedef SCALARTYPE const & const_reference;
 
@@ -63,9 +63,9 @@ namespace viennacl
 
   /** @brief Represents a vector consisting of 1 at a given index and zeros otherwise.*/
   template <typename SCALARTYPE>
-  class unit_vector : public symbolic_vector_base<SCALARTYPE>
+  class unit_vector : public vector_initializer_base<SCALARTYPE>
   {
-      typedef symbolic_vector_base<SCALARTYPE> base_type;
+      typedef vector_initializer_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
       unit_vector(size_type s, size_type ind) : base_type(s, ind, std::make_pair(1,true))
@@ -77,9 +77,9 @@ namespace viennacl
 
   /** @brief Represents a vector consisting of zeros only. */
   template <typename SCALARTYPE>
-  class zero_vector : public symbolic_vector_base<SCALARTYPE>
+  class zero_vector : public vector_initializer_base<SCALARTYPE>
   {
-      typedef symbolic_vector_base<SCALARTYPE> base_type;
+      typedef vector_initializer_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE        const_reference;
@@ -88,9 +88,9 @@ namespace viennacl
 
   /** @brief Represents a vector consisting of ones only. */
   template <typename SCALARTYPE>
-  class one_vector : public symbolic_vector_base<SCALARTYPE>
+  class one_vector : public vector_initializer_base<SCALARTYPE>
   {
-      typedef symbolic_vector_base<SCALARTYPE> base_type;
+      typedef vector_initializer_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE        const_reference;
@@ -100,9 +100,9 @@ namespace viennacl
 
   /** @brief Represents a vector consisting of scalars 's' only, i.e. v[i] = s for all i. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
   template <typename SCALARTYPE>
-  class scalar_vector : public symbolic_vector_base<SCALARTYPE>
+  class scalar_vector : public vector_initializer_base<SCALARTYPE>
   {
-      typedef symbolic_vector_base<SCALARTYPE> base_type;
+      typedef vector_initializer_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE const & const_reference;

@@ -28,6 +28,7 @@
 #include "CL/cl.h"
 
 #include "viennacl/vector.hpp"
+#include "viennacl/tools/shared_ptr.hpp"
 
 #include "viennacl/scheduler/forwards.h"
 
@@ -56,7 +57,7 @@ namespace viennacl{
 
       typedef std::pair<std::size_t, leaf_type> leaf_descriptor;
 
-      typedef std::map<leaf_descriptor, detail::symbolic_container> mapping_type;
+      typedef std::map< leaf_descriptor, tools::shared_ptr<detail::symbolic_container> > mapping_type;
 
 
 
@@ -76,7 +77,7 @@ namespace viennacl{
         public:
           expression_generation_traversal(utils::kernel_generation_stream & stream, mapping_type const & mapping) : stream_(stream), mapping_(mapping){ }
           void call_on_leaf(std::size_t index, leaf_type lhs_rhs, statement_node const & node, statement::container_type const * array) const {
-            generate(stream_,mapping_.at(std::make_pair(index, lhs_rhs)));
+            generate(stream_,*mapping_.at(std::make_pair(index, lhs_rhs)));
           }
           void call_on_op(operation_node_type_family, operation_node_type type) const {
             stream_ << detail::generate(type);
@@ -89,24 +90,87 @@ namespace viennacl{
           }
       };
 
+      struct host_scalar_descriptor{
+          std::string name_;
+      };
+
       class symbolic_container{
+        private:
+          std::string generate_scalartype(statement_node_type type){
+    #define MAKE_CASE(ref, scalartype) if(type==ref) return scalartype;
+            //vector:
+            MAKE_CASE(VECTOR_FLOAT_TYPE, "float");
+
+            //symbolic vector:
+            MAKE_CASE(VECTOR_INITIALIZER_FLOAT_TYPE, "float");
+
+            throw "unrecognized type";
+    #undef MAKE_CASE
+          }
+
+          virtual void generate_impl(utils::kernel_generation_stream & stream) const = 0;
+
+        protected:
+          std::string scalartype_;
+          std::string access_name_;
+
+        public:
+          symbolic_container(statement_node_type type) : scalartype_(generate_scalartype(type)){ }
+
+          virtual void fetch(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
+          virtual void write_back(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
+          void generate(utils::kernel_generation_stream & stream) const{
+            if(!access_name_.empty())
+              stream << access_name_;
+            else
+              generate_impl(stream);
+          }
+
+          virtual ~symbolic_container(){ }
+      };
+
+      class symbolic_host_scalar : public symbolic_container{
+          friend class prototype_generation_traversal;
+          std::string name_;
+
+          void generate_impl(utils::kernel_generation_stream & stream) const{
+              stream << name_;
+          }
+        public:
+          symbolic_host_scalar(statement_node_type type) : symbolic_container(type){ }
+      };
+
+      template<class SCALARTYPE>
+      class symbolic_vector : public symbolic_container{
           friend class prototype_generation_traversal;
 
-        private:
-          statement_node_type_family type_family_;
-          statement_node_type type_;
-          lhs_rhs_element element_;
-
-          std::size_t node_index;
+          std::size_t node_index_;
           statement_node node_;
           statement::container_type const * array_;
           mapping_type const * mapping_;
 
-          std::string scalartype_;
           std::string name_;
-          std::string access_name_;
 
+          std::string start_name_;
+          std::string stride_name_;
+          std::string shift_name_;
+
+          vector_base<SCALARTYPE> const * vec_;
+
+          void generate_impl(utils::kernel_generation_stream & stream) const{
+              stream << name_;
+              stream << '[' ;
+              if(mapping_==NULL)
+                stream << "i";
+              else if(node_.rhs_type_==COMPOSITE_OPERATION_TYPE)
+                traverse(*array_, expression_generation_traversal(stream,*mapping_), false, node_.rhs_.node_index_);
+              else
+                detail::generate(stream,*mapping_->at(std::make_pair(node_index_, RHS_LEAF_TYPE)));
+              stream << ']';
+          }
         public:
+          symbolic_vector(statement_node_type type, vector_base<SCALARTYPE> const * vec) : symbolic_container(type), vec_(vec){ }
+
           void fetch(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
             std::string new_access_name = name_ + "_private";
             if(fetched.find(name_)==fetched.end()){
@@ -127,51 +191,20 @@ namespace viennacl{
               fetched.erase(name_);
             }
           }
-
-          void generate(utils::kernel_generation_stream & stream) const{
-            if(!access_name_.empty())
-              stream << access_name_;
-            else if(type_family_==HOST_SCALAR_TYPE_FAMILY)
-              stream << name_;
-            else if(type_family_==SCALAR_TYPE_FAMILY)
-              stream << '*' << name_;
-            else if(type_family_==SYMBOLIC_VECTOR_TYPE_FAMILY)
-              stream << name_;
-            else{
-              stream << name_;
-              stream << '[' ;
-              if(mapping_==NULL)
-                stream << "i";
-              else if(node_.rhs_type_==COMPOSITE_OPERATION_TYPE)
-                traverse(*array_, expression_generation_traversal(stream,*mapping_), false, node_.rhs_.node_index_);
-              else
-                detail::generate(stream,mapping_->at(std::make_pair(node_index, RHS_LEAF_TYPE)));
-              stream << ']';
-            }
-          }
       };
 
-
-      cl_mem get_handle(statement_node_type type, lhs_rhs_element element){
-#define MAKE_CASE(ref,unmap_type, raw_pointer) if(type==ref) return static_cast<unmap_type *>(element.raw_pointer)->handle().opencl_handle();
-        //vector
-        MAKE_CASE(VECTOR_FLOAT_TYPE, vector_base<float>, vector_float_);
-
-        throw "unrecognized type";
-#undef MAKE_CASE
-      }
-
-      std::string generate_scalartype(statement_node_type type){
-#define MAKE_CASE(ref, scalartype) if(type==ref) return scalartype;
-        //vector:
-        MAKE_CASE(VECTOR_FLOAT_TYPE, "float");
-
-        //symbolic vector:
-        MAKE_CASE(SYMBOLIC_VECTOR_FLOAT_TYPE, "float");
-
-        throw "unrecognized type";
-#undef MAKE_CASE
-      }
+      template<class SCALARTYPE>
+      class symbolic_vector_initializer : public symbolic_container{
+          friend class prototype_generation_traversal;
+          std::string value_name_;
+          std::string index_name_;
+          vector_initializer_base<SCALARTYPE> * vec_;
+          void generate_impl(utils::kernel_generation_stream & stream) const{
+            stream << value_name_;
+          }
+        public:
+          symbolic_vector_initializer(statement_node_type type, vector_initializer_base<SCALARTYPE> * vec) : symbolic_container(type), vec_(vec){ }
+      };
 
       void generate(utils::kernel_generation_stream & stream, symbolic_container const & s){
         s.generate(stream);
@@ -262,56 +295,48 @@ namespace viennacl{
           std::string & str_;
 
 
-          void prototype_value_generation(statement_node_type type, lhs_rhs_element, symbolic_container & sym) const{
-            sym.name_ = "arg" + utils::to_string(current_arg_++);
-            str_ += sym.scalartype_ + ' '  + sym.name_ + ",";
+          std::string prototype_value_generation(std::string const & scalartype) const{
+            std::string name = "arg" + utils::to_string(current_arg_++);
+            str_ += scalartype + ' '  + name + ",";
+            return name;
           }
 
-          void prototype_pointer_generation(statement_node_type type, lhs_rhs_element element, symbolic_container & sym) const {
-            if(memory_.insert(std::make_pair(detail::get_handle(type, element), current_arg_)).second){
-              sym.name_ =  "arg" + utils::to_string(current_arg_++);
-              str_ += "__global " +  sym.scalartype_ + "* " + sym.name_ + ",";
+          std::string prototype_pointer_generation(std::string const & scalartype, cl_mem handle) const {
+            std::string name;
+            if(memory_.insert(std::make_pair(handle, current_arg_)).second){
+              name =  "arg" + utils::to_string(current_arg_++);
+              str_ += "__global " +  scalartype + "* " + name + ",";
             }
             else
-              sym.name_ = "arg" + utils::to_string(memory_.at(detail::get_handle(type, element)));
+              name = "arg" + utils::to_string(memory_.at(handle));
+            return name;
           }
 
-          void host_scalar_prototype(statement_node_type type, lhs_rhs_element element, symbolic_container & s) const {
-            prototype_value_generation(type,element,s);
+          void host_scalar_prototype(symbolic_host_scalar * p) const {
+            p->name_ = prototype_value_generation(p->scalartype_);
           }
 
-          void symbolic_vector_prototype(statement_node_type type, lhs_rhs_element element, symbolic_container & s) const {
-            if(type==SYMBOLIC_VECTOR_FLOAT_TYPE){
-              viennacl::symbolic_vector_base<float> * vec = element.symbolic_vector_float_;
-              if(!vec->is_value_static())
-                prototype_value_generation(type,element,s);
-              if(vec->index().first)
-                prototype_value_generation(type,element,s);
-            }
+          template<typename T>
+          void vector_initializer_prototype(symbolic_vector_initializer<T> * p) const {
+            if(!p->vec_->is_value_static())
+              p->value_name_ = prototype_value_generation(p->scalartype_);
+            if(p->vec_->index().first)
+              p->index_name_ = prototype_value_generation(p->scalartype_);
           }
 
-          void vector_prototype(statement_node_type type, lhs_rhs_element element, symbolic_container & s) const {
-            prototype_pointer_generation(type,element,s);
-            if(type==VECTOR_FLOAT_TYPE){
-              viennacl::vector_base<float> * vec = element.vector_float_;
-              if(vec->start() > 0)
-                prototype_value_generation(type,element,s);
-              if(vec->stride() > 0)
-                prototype_value_generation(type,element,s);
-            }
+          template<typename T>
+          void vector_prototype(symbolic_vector<T> * p) const {
+            p->name_ = prototype_pointer_generation(p->scalartype_, p->vec_->handle().opencl_handle());
+            if(p->vec_->start() > 0)
+              p->start_name_ = prototype_value_generation(p->scalartype_);
+            if(p->vec_->stride() > 1)
+              p->shift_name_ = prototype_value_generation(p->scalartype_);
           }
 
         public:
           prototype_generation_traversal(std::map<cl_mem, std::size_t> & memory, mapping_type & mapping, std::string & str) : current_arg_(0), memory_(memory), mapping_(mapping), str_(str) { }
 
           void call_on_leaf(std::size_t index, leaf_type lhs_rhs, statement_node const & node, statement::container_type const * array) const {
-            symbolic_container & s = mapping_[std::make_pair(index, lhs_rhs)];
-            if(array){
-              s.node_index = index;
-              s.node_ = node;
-              s.array_ = array;
-              s.mapping_ = &mapping_;
-            }
             statement_node_type type;
             statement_node_type_family type_family;
             lhs_rhs_element element;
@@ -325,16 +350,48 @@ namespace viennacl{
               type_family = node.rhs_type_family_;
               element = node.rhs_;
             }
-            s.scalartype_ = detail::generate_scalartype(type);
-            s.type_ = type;
-            s.type_family_ = type_family;
-            s.element_ = element;
-            if(type_family==HOST_SCALAR_TYPE_FAMILY)
-              host_scalar_prototype(type,element,s);
-            else if(type_family==SYMBOLIC_VECTOR_TYPE_FAMILY)
-              symbolic_vector_prototype(type,element,s);
-            else
-              vector_prototype(type,element,s);
+
+            if(type_family==HOST_SCALAR_TYPE_FAMILY){
+              symbolic_host_scalar * p = new symbolic_host_scalar(type);
+              mapping_.insert(std::make_pair(std::make_pair(index, lhs_rhs), tools::shared_ptr<symbolic_container>(p)));
+              host_scalar_prototype(p);
+            }
+            else if(type_family==VECTOR_TYPE_FAMILY){
+              if(type==VECTOR_FLOAT_TYPE){
+                symbolic_vector<float> * p = new symbolic_vector<float>(type, element.vector_float_);
+                mapping_.insert(std::make_pair(std::make_pair(index, lhs_rhs), tools::shared_ptr<symbolic_container>(p)));
+                if(array){
+                  p->node_index_ = index;
+                  p->node_ = node;
+                  p->array_ = array;
+                  p->mapping_ = &mapping_;
+                }
+                vector_prototype(p);
+              }
+              if(type==VECTOR_DOUBLE_TYPE){
+                symbolic_vector<double> * p = new symbolic_vector<double>(type, element.vector_double_);
+                mapping_.insert(std::make_pair(std::make_pair(index, lhs_rhs), tools::shared_ptr<symbolic_container>(p)));
+                if(array){
+                  p->node_index_ = index;
+                  p->node_ = node;
+                  p->array_ = array;
+                  p->mapping_ = &mapping_;
+                }
+                vector_prototype(p);
+              }
+            }
+            else if(type_family==VECTOR_INITIALIZER_TYPE_FAMILY){
+              if(type==VECTOR_INITIALIZER_FLOAT_TYPE){
+                symbolic_vector_initializer<float> * p = new symbolic_vector_initializer<float>(type, element.vector_initializer_float_);
+                mapping_.insert(std::make_pair(std::make_pair(index, lhs_rhs), tools::shared_ptr<symbolic_container>(p)));
+                vector_initializer_prototype(p);
+              }
+              if(type==VECTOR_INITIALIZER_DOUBLE_TYPE){
+                symbolic_vector_initializer<double> * p = new symbolic_vector_initializer<double>(type, element.vector_initializer_double_);
+                mapping_.insert(std::make_pair(std::make_pair(index, lhs_rhs), tools::shared_ptr<symbolic_container>(p)));
+                vector_initializer_prototype(p);
+              }
+            }
           }
       };
 

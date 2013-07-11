@@ -135,7 +135,7 @@ namespace viennacl
 
       // vector:
       VECTOR_TYPE_FAMILY,
-      SYMBOLIC_VECTOR_TYPE_FAMILY,
+      VECTOR_INITIALIZER_TYPE_FAMILY,
 
       // matrices:
       MATRIX_ROW_TYPE_FAMILY,
@@ -187,17 +187,17 @@ namespace viennacl
       VECTOR_DOUBLE_TYPE,
 
       // symbolic vector:
-      SYMBOLIC_VECTOR_CHAR_TYPE,
-      SYMBOLIC_VECTOR_UCHAR_TYPE,
-      SYMBOLIC_VECTOR_SHORT_TYPE,
-      SYMBOLIC_VECTOR_USHORT_TYPE,
-      SYMBOLIC_VECTOR_INT_TYPE,
-      SYMBOLIC_VECTOR_UINT_TYPE,
-      SYMBOLIC_VECTOR_LONG_TYPE,
-      SYMBOLIC_VECTOR_ULONG_TYPE,
-      SYMBOLIC_VECTOR_HALF_TYPE,
-      SYMBOLIC_VECTOR_FLOAT_TYPE,
-      SYMBOLIC_VECTOR_DOUBLE_TYPE,
+      VECTOR_INITIALIZER_CHAR_TYPE,
+      VECTOR_INITIALIZER_UCHAR_TYPE,
+      VECTOR_INITIALIZER_SHORT_TYPE,
+      VECTOR_INITIALIZER_USHORT_TYPE,
+      VECTOR_INITIALIZER_INT_TYPE,
+      VECTOR_INITIALIZER_UINT_TYPE,
+      VECTOR_INITIALIZER_LONG_TYPE,
+      VECTOR_INITIALIZER_ULONG_TYPE,
+      VECTOR_INITIALIZER_HALF_TYPE,
+      VECTOR_INITIALIZER_FLOAT_TYPE,
+      VECTOR_INITIALIZER_DOUBLE_TYPE,
 
       // matrix, row major:
       MATRIX_ROW_CHAR_TYPE,
@@ -248,22 +248,22 @@ namespace viennacl
 #undef VIENNACL_GENERATE_VECTOR_TYPE_MAPPING
 
       template <typename T>
-      struct symbolic_vector_type_for_scalar {};
-#define VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(TYPE, ENUMVALUE) \
-      template <> struct symbolic_vector_type_for_scalar<TYPE> { enum { value = ENUMVALUE }; };
+      struct vector_initializer_type_for_scalar {};
+#define VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(TYPE, ENUMVALUE) \
+      template <> struct vector_initializer_type_for_scalar<TYPE> { enum { value = ENUMVALUE }; }
 
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(char,           SYMBOLIC_VECTOR_CHAR_TYPE);
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(unsigned char,  SYMBOLIC_VECTOR_UCHAR_TYPE);
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(short,          SYMBOLIC_VECTOR_SHORT_TYPE);
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(unsigned short, SYMBOLIC_VECTOR_USHORT_TYPE);
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(int,            SYMBOLIC_VECTOR_INT_TYPE);
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(unsigned int,   SYMBOLIC_VECTOR_UINT_TYPE);
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(long,           SYMBOLIC_VECTOR_LONG_TYPE);
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(unsigned long,  SYMBOLIC_VECTOR_ULONG_TYPE);
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(float,          SYMBOLIC_VECTOR_FLOAT_TYPE);
-      VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING(double,         SYMBOLIC_VECTOR_DOUBLE_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(char,           VECTOR_INITIALIZER_CHAR_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(unsigned char,  VECTOR_INITIALIZER_UCHAR_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(short,          VECTOR_INITIALIZER_SHORT_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(unsigned short, VECTOR_INITIALIZER_USHORT_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(int,            VECTOR_INITIALIZER_INT_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(unsigned int,   VECTOR_INITIALIZER_UINT_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(long,           VECTOR_INITIALIZER_LONG_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(unsigned long,  VECTOR_INITIALIZER_ULONG_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(float,          VECTOR_INITIALIZER_FLOAT_TYPE);
+      VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING(double,         VECTOR_INITIALIZER_DOUBLE_TYPE);
 
-#undef VIENNACL_GENERATE_SYMBOLIC_VECTOR_TYPE_MAPPING
+#undef VIENNACL_GENERATE_VECTOR_INITIALIZER_TYPE_MAPPING
     }
 
 
@@ -318,17 +318,17 @@ namespace viennacl
       viennacl::vector_base<float>            *vector_float_;
       viennacl::vector_base<double>           *vector_double_;
 
-      // symbolic_vectors:
-      //viennacl::symbolic_vector_base<char>             *symbolic_vector_char_;
-      //viennacl::symbolic_vector_base<unsigned char>    *symbolic_vector_uchar_;
-      //viennacl::symbolic_vector_base<short>            *symbolic_vector_short_;
-      //viennacl::symbolic_vector_base<unsigned short>   *symbolic_vector_ushort_;
-      //viennacl::symbolic_vector_base<int>              *symbolic_vector_int_;
-      //viennacl::symbolic_vector_base<unsigned int>     *symbolic_vector_uint_;
-      //viennacl::symbolic_vector_base<long>             *symbolic_vector_long_;
-      //viennacl::symbolic_vector_base<unsigned long>    *symbolic_vector_ulong_;
-      viennacl::symbolic_vector_base<float>            *symbolic_vector_float_;
-      viennacl::symbolic_vector_base<double>           *symbolic_vector_double_;
+      // VECTOR_INITIALIZERs:
+      //viennacl::VECTOR_INITIALIZER_base<char>             *VECTOR_INITIALIZER_char_;
+      //viennacl::VECTOR_INITIALIZER_base<unsigned char>    *VECTOR_INITIALIZER_uchar_;
+      //viennacl::VECTOR_INITIALIZER_base<short>            *VECTOR_INITIALIZER_short_;
+      //viennacl::VECTOR_INITIALIZER_base<unsigned short>   *VECTOR_INITIALIZER_ushort_;
+      //viennacl::VECTOR_INITIALIZER_base<int>              *VECTOR_INITIALIZER_int_;
+      //viennacl::VECTOR_INITIALIZER_base<unsigned int>     *VECTOR_INITIALIZER_uint_;
+      //viennacl::VECTOR_INITIALIZER_base<long>             *VECTOR_INITIALIZER_long_;
+      //viennacl::VECTOR_INITIALIZER_base<unsigned long>    *VECTOR_INITIALIZER_ulong_;
+      viennacl::vector_initializer_base<float>            *vector_initializer_float_;
+      viennacl::vector_initializer_base<double>           *vector_initializer_double_;
 
       // row-major matrices:
       //viennacl::matrix_base<char>             *matrix_row_char_;
@@ -413,8 +413,8 @@ namespace viennacl
         void assign_element(lhs_rhs_element & element_, viennacl::vector_base<float>  const & t) { element_.vector_float_  = const_cast<viennacl::vector_base<float> *>(&t); }
         void assign_element(lhs_rhs_element & element_, viennacl::vector_base<double> const & t) { element_.vector_double_ = const_cast<viennacl::vector_base<double> *>(&t); }
 
-        void assign_element(lhs_rhs_element & element_, viennacl::symbolic_vector_base<float>  const & t) { element_.symbolic_vector_float_  = const_cast<viennacl::symbolic_vector_base<float> *>(&t); }
-        void assign_element(lhs_rhs_element & element_, viennacl::symbolic_vector_base<double> const & t) { element_.symbolic_vector_double_ = const_cast<viennacl::symbolic_vector_base<double> *>(&t); }
+        void assign_element(lhs_rhs_element & element_, viennacl::vector_initializer_base<float>  const & t) { element_.vector_initializer_float_  = const_cast<viennacl::vector_initializer_base<float> *>(&t); }
+        void assign_element(lhs_rhs_element & element_, viennacl::vector_initializer_base<double> const & t) { element_.vector_initializer_double_ = const_cast<viennacl::vector_initializer_base<double> *>(&t); }
 
         template <typename T>
         std::size_t add_element(std::size_t next_free,
@@ -434,10 +434,10 @@ namespace viennacl
                                 statement_node_type_family & type_family_,
                                 statement_node_type        & type_,
                                 lhs_rhs_element            & element_,
-                                viennacl::symbolic_vector_base<T> const & t)
+                                viennacl::vector_initializer_base<T> const & t)
         {
-          type_family_           = SYMBOLIC_VECTOR_TYPE_FAMILY;
-          type_                  = statement_node_type(result_of::symbolic_vector_type_for_scalar<T>::value);
+          type_family_           = VECTOR_INITIALIZER_TYPE_FAMILY;
+          type_                  = statement_node_type(result_of::vector_initializer_type_for_scalar<T>::value);
           assign_element(element_, t);
           return next_free;
         }

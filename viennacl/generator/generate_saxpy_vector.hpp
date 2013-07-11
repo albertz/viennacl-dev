@@ -75,7 +75,7 @@ namespace viennacl{
       std::set<std::string>  fetched;
       for(std::vector<detail::mapping_type>::iterator it = mapping.begin() ; it != mapping.end() ; ++it)
         for(detail::mapping_type::reverse_iterator it2 = it->rbegin() ; it2 != it->rend() ; ++it2)
-          it2->second.fetch(fetched, stream);
+          it2->second->fetch(fetched, stream);
 
 
       for(std::size_t i = 0 ; i < statements.size() ; ++i){
@@ -86,7 +86,7 @@ namespace viennacl{
       //Writes back
       for(std::vector<detail::mapping_type>::iterator it = mapping.begin() ; it != mapping.end() ; ++it)
         for(detail::mapping_type::iterator it2 = it->begin() ; it2 != it->end() ; ++it2)
-          it2->second.write_back(fetched, stream);
+          it2->second->write_back(fetched, stream);
 
       stream.dec_tab();
       stream << "}" << std::endl;
