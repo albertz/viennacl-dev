@@ -26,7 +26,6 @@
 #include <fstream>
 #include <sstream>
 #include "viennacl/forwards.h"
-#include "viennacl/meta/is_base_of.hpp"
 
 #ifdef VIENNACL_WITH_OPENCL
 #include "CL/cl.h"
@@ -102,13 +101,20 @@ namespace viennacl
     // is_any_vector : checks for either vector_base or symbolic_vector_base
     //
     template<typename T>
-    struct is_any_vector
-    {
-        enum { value = is_base_of<vector_base<float>, T>::value
-                      ||is_base_of<symbolic_vector_base<float>, T>::value
-                      ||is_base_of<vector_base<double>, T>::value
-                      ||is_base_of<symbolic_vector_base<double>, T>::value };
-    };
+    struct is_any_vector { enum { value = 0 }; };
+#define VIENNACL_MAKE_ANY_VECTOR_TRUE(type) template<> struct is_any_vector< type > { enum { value = 1 }; };
+#define VIENNACL_MAKE_FOR_ALL_SCALARTYPE(type) \
+  VIENNACL_MAKE_ANY_VECTOR_TRUE(type<float>)\
+  VIENNACL_MAKE_ANY_VECTOR_TRUE(type<double>)
+
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::vector)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::unit_vector)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::zero_vector)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::one_vector)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::scalar_vector)
+
+#undef VIENNACL_MAKE_FOR_ALL_SCALARTYPE
+#undef VIENNACL_MAKE_ANY_VECTOR_TRUE
 
     //
     // is_row_major

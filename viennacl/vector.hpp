@@ -44,38 +44,33 @@ namespace viennacl
   template<typename SCALARTYPE>
   class symbolic_vector_base
   {
-    public:
+    protected:
       typedef vcl_size_t        size_type;
-
       symbolic_vector_base(size_type s) : size_(s){ }
-
+    public:
       size_type size() const { return size_; }
-
     private:
       size_type size_;
   };
 
-  /** @brief Represents a vector consisting of 1 at a given index and zeros otherwise. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
+  /** @brief Represents a vector consisting of 1 at a given index and zeros otherwise.*/
   template <typename SCALARTYPE>
   class unit_vector : public symbolic_vector_base<SCALARTYPE>
   {
       typedef symbolic_vector_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
-
       unit_vector(size_type s, size_type ind) : base_type(s), index_(ind)
       {
         assert( (ind < s) && bool("Provided index out of range!") );
       }
-
       size_type index() const { return index_; }
-
     private:
       size_type index_;
   };
 
 
-  /** @brief Represents a vector consisting of zeros only. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
+  /** @brief Represents a vector consisting of zeros only. */
   template <typename SCALARTYPE>
   class zero_vector : public symbolic_vector_base<SCALARTYPE>
   {
@@ -83,11 +78,18 @@ namespace viennacl
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE        const_reference;
-
       zero_vector(size_type s) : base_type(s) {}
+  };
 
-      const_reference operator()(size_type /*i*/) const { return 0; }
-      const_reference operator[](size_type /*i*/) const { return 0; }
+  /** @brief Represents a vector consisting of ones only. */
+  template <typename SCALARTYPE>
+  class one_vector : public symbolic_vector_base<SCALARTYPE>
+  {
+      typedef symbolic_vector_base<SCALARTYPE> base_type;
+    public:
+      typedef typename base_type::size_type size_type;
+      typedef SCALARTYPE        const_reference;
+      one_vector(size_type s) : base_type(s) {}
   };
 
 

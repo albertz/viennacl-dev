@@ -93,27 +93,16 @@ namespace viennacl{
         private:
           statement_node_type_family type_family_;
           statement_node_type type_;
-
+          lhs_rhs_element element_;
 
           std::size_t node_index;
           statement_node node_;
           statement::container_type const * array_;
           mapping_type const * mapping_;
 
-          lhs_rhs_element element_;
           std::string scalartype_;
           std::string name_;
           std::string access_name_;
-
-        private:
-          void offset(utils::kernel_generation_stream & stream) const {
-            if(mapping_==NULL)
-              stream << "i";
-            else if(node_.rhs_type_==COMPOSITE_OPERATION_TYPE)
-              traverse(*array_, expression_generation_traversal(stream,*mapping_), false, node_.rhs_.node_index_);
-            else
-              detail::generate(stream,mapping_->at(std::make_pair(node_index, RHS_LEAF_TYPE)));
-          }
 
         public:
           void fetch(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
@@ -144,10 +133,18 @@ namespace viennacl{
               stream << name_;
             else if(type_family_==SCALAR_TYPE_FAMILY)
               stream << '*' << name_;
+            else if(type_family_==SYMBOLIC_VECTOR_TYPE_FAMILY)
+              stream << name_;
             else{
-              stream << name_ << "[" ;
-              offset(stream);
-              stream << "]";
+              stream << name_;
+              stream << '[' ;
+              if(mapping_==NULL)
+                stream << "i";
+              else if(node_.rhs_type_==COMPOSITE_OPERATION_TYPE)
+                traverse(*array_, expression_generation_traversal(stream,*mapping_), false, node_.rhs_.node_index_);
+              else
+                detail::generate(stream,mapping_->at(std::make_pair(node_index, RHS_LEAF_TYPE)));
+              stream << ']';
             }
           }
       };

@@ -146,11 +146,17 @@ namespace viennacl
   template<class SCALARTYPE, unsigned int ALIGNMENT>
   class const_vector_iterator;
 
-  template<typename SCALARTYPE>
-  class symbolic_vector_base;
+  template <typename SCALARTYPE>
+  class unit_vector;
 
   template <typename SCALARTYPE>
   class zero_vector;
+
+  template <typename SCALARTYPE>
+  class one_vector;
+
+  template <typename SCALARTYPE>
+  class scalar_vector;
 
   template<class SCALARTYPE, typename SizeType = vcl_size_t, typename DistanceType = vcl_ptrdiff_t>
   class vector_base;
