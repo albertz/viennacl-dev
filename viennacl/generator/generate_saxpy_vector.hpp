@@ -74,7 +74,7 @@ namespace viennacl{
       //Fetches entries to registers
       std::set<std::string>  fetched;
       for(std::vector<detail::mapping_type>::iterator it = mapping.begin() ; it != mapping.end() ; ++it)
-        for(detail::mapping_type::iterator it2 = it->begin() ; it2 != it->end() ; ++it2)
+        for(detail::mapping_type::reverse_iterator it2 = it->rbegin() ; it2 != it->rend() ; ++it2)
           it2->second.fetch(fetched, stream);
 
 

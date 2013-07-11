@@ -63,7 +63,7 @@ namespace viennacl{
       kss << "__kernel void kernel_0(" << std::endl;
       std::string prototype;
       for(std::size_t i = 0 ; i < size ; ++i)
-        detail::traverse(statements[i].array(), detail::prototype_generation_traversal(memory, mapping[i], prototype),true);
+        detail::traverse(statements[i].array(), detail::prototype_generation_traversal(memory, mapping[i], prototype),false);
       prototype.erase(prototype.size()-1); //Last comma pruned
       kss << prototype << std::endl;
       kss << ")" << std::endl;

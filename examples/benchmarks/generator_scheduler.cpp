@@ -82,7 +82,7 @@ int run_benchmark()
 
   std::vector<viennacl::scheduler::statement> statements;
 //  statements.push_back(viennacl::scheduler::statement(vcl_vec2, viennacl::op_assign(), viennacl::linalg::element_abs(vcl_vec1) + vcl_vec3));
-  statements.push_back(viennacl::scheduler::statement(vcl_vec2, viennacl::op_assign(), vcl_vec2 + vcl_vec3(vcl_vec1)));
+  statements.push_back(viennacl::scheduler::statement(vcl_vec2, viennacl::op_assign(), viennacl::scalar_vector<float>(BENCHMARK_VECTOR_SIZE,1) + vcl_vec1));
   std::cout << viennacl::generator::make_program_string(statements) << std::endl;
 
   return 0;
