@@ -46,11 +46,19 @@ namespace viennacl
   {
     protected:
       typedef vcl_size_t        size_type;
-      symbolic_vector_base(size_type s) : size_(s){ }
+      symbolic_vector_base(size_type s, std::size_t i, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(true,i)), value_(v){ }
+      symbolic_vector_base(size_type s, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(false,0)), value_(v){ }
     public:
+      typedef SCALARTYPE const & const_reference;
+
       size_type size() const { return size_; }
-    private:
+      SCALARTYPE  value() const { return value_.first; }
+      bool is_value_static() const { return value_.second; }
+      std::pair<bool, std::size_t> index() const { return index_; }
+    protected:
       size_type size_;
+      std::pair<bool, std::size_t> index_;
+      std::pair<SCALARTYPE, bool> value_;
   };
 
   /** @brief Represents a vector consisting of 1 at a given index and zeros otherwise.*/
@@ -60,13 +68,10 @@ namespace viennacl
       typedef symbolic_vector_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
-      unit_vector(size_type s, size_type ind) : base_type(s), index_(ind)
+      unit_vector(size_type s, size_type ind) : base_type(s, ind, std::make_pair(1,true))
       {
         assert( (ind < s) && bool("Provided index out of range!") );
       }
-      size_type index() const { return index_; }
-    private:
-      size_type index_;
   };
 
 
@@ -78,7 +83,7 @@ namespace viennacl
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE        const_reference;
-      zero_vector(size_type s) : base_type(s) {}
+      zero_vector(size_type s) : base_type(s, std::make_pair(0,true)) {}
   };
 
   /** @brief Represents a vector consisting of ones only. */
@@ -89,7 +94,7 @@ namespace viennacl
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE        const_reference;
-      one_vector(size_type s) : base_type(s) {}
+      one_vector(size_type s) : base_type(s, std::make_pair(1,true)) {}
   };
 
 
@@ -102,21 +107,14 @@ namespace viennacl
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE const & const_reference;
 
-      scalar_vector(size_type s, SCALARTYPE val) : base_type(s), value_(val) {}
+      scalar_vector(size_type s, SCALARTYPE val) : base_type(s, std::make_pair(val,false)) {}
 
 #ifdef VIENNACL_WITH_OPENCL
-      scalar_vector(size_type s, SCALARTYPE val, viennacl::ocl::context const & ctx) : base_type(s), value_(val), ctx_(&ctx) {}
-#endif
-
-      const_reference operator()(size_type /*i*/) const { return value_; }
-      const_reference operator[](size_type /*i*/) const { return value_; }
-
-#ifdef VIENNACL_WITH_OPENCL
+      scalar_vector(size_type s, SCALARTYPE val, viennacl::ocl::context const & ctx) : base_type(s, std::make_pair(val,false)), ctx_(&ctx) {}
       viennacl::ocl::context const & context() const { return *ctx_; }
 #endif
 
     private:
-      SCALARTYPE value_;
 #ifdef VIENNACL_WITH_OPENCL
       viennacl::ocl::context const * ctx_;
 #endif

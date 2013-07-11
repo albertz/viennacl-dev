@@ -27,6 +27,8 @@
 
 #include "CL/cl.h"
 
+#include "viennacl/vector.hpp"
+
 #include "viennacl/scheduler/forwards.h"
 
 #include "viennacl/generator/utils.hpp"
@@ -260,18 +262,43 @@ namespace viennacl{
           std::string & str_;
 
 
-          void prototype_value_generation(statement_node_type_family, statement_node_type type, lhs_rhs_element, symbolic_container & sym) const{
+          void prototype_value_generation(statement_node_type type, lhs_rhs_element, symbolic_container & sym) const{
             sym.name_ = "arg" + utils::to_string(current_arg_++);
             str_ += sym.scalartype_ + ' '  + sym.name_ + ",";
           }
 
-          void prototype_pointer_generation(statement_node_type_family type_family, statement_node_type type, lhs_rhs_element element, symbolic_container & sym) const {
+          void prototype_pointer_generation(statement_node_type type, lhs_rhs_element element, symbolic_container & sym) const {
             if(memory_.insert(std::make_pair(detail::get_handle(type, element), current_arg_)).second){
               sym.name_ =  "arg" + utils::to_string(current_arg_++);
               str_ += "__global " +  sym.scalartype_ + "* " + sym.name_ + ",";
             }
             else
               sym.name_ = "arg" + utils::to_string(memory_.at(detail::get_handle(type, element)));
+          }
+
+          void host_scalar_prototype(statement_node_type type, lhs_rhs_element element, symbolic_container & s) const {
+            prototype_value_generation(type,element,s);
+          }
+
+          void symbolic_vector_prototype(statement_node_type type, lhs_rhs_element element, symbolic_container & s) const {
+            if(type==SYMBOLIC_VECTOR_FLOAT_TYPE){
+              viennacl::symbolic_vector_base<float> * vec = element.symbolic_vector_float_;
+              if(!vec->is_value_static())
+                prototype_value_generation(type,element,s);
+              if(vec->index().first)
+                prototype_value_generation(type,element,s);
+            }
+          }
+
+          void vector_prototype(statement_node_type type, lhs_rhs_element element, symbolic_container & s) const {
+            prototype_pointer_generation(type,element,s);
+            if(type==VECTOR_FLOAT_TYPE){
+              viennacl::vector_base<float> * vec = element.vector_float_;
+              if(vec->start() > 0)
+                prototype_value_generation(type,element,s);
+              if(vec->stride() > 0)
+                prototype_value_generation(type,element,s);
+            }
           }
 
         public:
@@ -303,11 +330,11 @@ namespace viennacl{
             s.type_family_ = type_family;
             s.element_ = element;
             if(type_family==HOST_SCALAR_TYPE_FAMILY)
-              prototype_value_generation(type_family,type,element,s);
+              host_scalar_prototype(type,element,s);
             else if(type_family==SYMBOLIC_VECTOR_TYPE_FAMILY)
-              prototype_value_generation(type_family,type,element,s);
+              symbolic_vector_prototype(type,element,s);
             else
-              prototype_pointer_generation(type_family,type,element,s);
+              vector_prototype(type,element,s);
           }
       };
 
