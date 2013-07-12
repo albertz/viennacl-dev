@@ -60,6 +60,10 @@ namespace viennacl{
           return profile_base::invalid_base(dev,0);
         }
 
+        void kernel_arguments(std::string & arguments_string){
+          arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
+        }
+
       private:
         unsigned int loop_unroll_;
         unsigned int group_size_;

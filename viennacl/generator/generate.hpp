@@ -45,7 +45,7 @@ namespace viennacl{
 
     template<class InputIterator>
     std::string make_program_string(InputIterator first, InputIterator last){
-      std::map<cl_mem, std::size_t> memory;
+      std::map<void *, std::size_t> memory;
       std::size_t size = std::distance(first,last);
       std::vector<detail::mapping_type> mapping(size);
 
@@ -60,9 +60,14 @@ namespace viennacl{
 
       kss << std::endl;
 
+      statement first_statement = *first;
+      typename statement::container_type const & expr = first_statement.array();
+      saxpy_vector_profile profile(1,4,128);
+
       //Prototype generation
       kss << "__kernel void kernel_0(" << std::endl;
       std::string prototype;
+      profile.kernel_arguments(prototype);
       std::size_t current_arg = 0;
       std::size_t i = 0;
       for(InputIterator it = first ; it != last ; ++it)
@@ -74,7 +79,7 @@ namespace viennacl{
       kss.inc_tab();
 
       //body generation
-      generate_saxpy_vector(saxpy_vector_profile(1,4,128), kss, first, last, mapping);
+      generate_saxpy_vector(profile, kss, first, last, mapping);
 
       kss.dec_tab();
       kss << "}" << std::endl;

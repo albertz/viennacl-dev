@@ -59,7 +59,13 @@ namespace viennacl{
 
       typedef std::map< leaf_descriptor, tools::shared_ptr<detail::symbolic_container> > mapping_type;
 
+      std::string generate_value_kernel_argument(std::string const & scalartype, std::string const & name){
+        return scalartype + ' ' + name + ",";
+      }
 
+      std::string generate_pointer_kernel_argument(std::string const & address_space, std::string const & scalartype, std::string const & name){
+        return "__global " +  scalartype + "* " + name + ",";
+      }
 
       class traversal_functor{
         public:
@@ -289,23 +295,28 @@ namespace viennacl{
 
       class prototype_generation_traversal : public traversal_functor{
 
-          std::map<cl_mem, std::size_t> & memory_;
+          std::map<void *, std::size_t> & memory_;
           mapping_type & mapping_;
           std::string & str_;
           std::size_t & current_arg_;
 
 
-          std::string prototype_value_generation(std::string const & scalartype) const{
-            std::string name = "arg" + utils::to_string(current_arg_++);
-            str_ += scalartype + ' '  + name + ",";
-            return name;
-          }
-
-          std::string prototype_pointer_generation(std::string const & scalartype, cl_mem handle) const {
+          std::string prototype_value_generation(std::string const & scalartype, void * handle) const{
             std::string name;
             if(memory_.insert(std::make_pair(handle, current_arg_)).second){
               name =  "arg" + utils::to_string(current_arg_++);
-              str_ += "__global " +  scalartype + "* " + name + ",";
+              str_ += detail::generate_value_kernel_argument(scalartype, name);
+            }
+            else
+              name = "arg" + utils::to_string(memory_.at(handle));
+            return name;
+          }
+
+          std::string prototype_pointer_generation(std::string const & scalartype, void * handle) const {
+            std::string name;
+            if(memory_.insert(std::make_pair(handle, current_arg_)).second){
+              name =  "arg" + utils::to_string(current_arg_++);
+              str_ += detail::generate_pointer_kernel_argument("__global", scalartype, name);
             }
             else
               name = "arg" + utils::to_string(memory_.at(handle));
@@ -313,28 +324,28 @@ namespace viennacl{
           }
 
           void host_scalar_prototype(symbolic_host_scalar * p) const {
-            p->name_ = prototype_value_generation(p->scalartype_);
+            p->name_ = prototype_value_generation(p->scalartype_, (void *)p);
           }
 
           template<typename T>
           void vector_initializer_prototype(symbolic_vector_initializer<T> * p) const {
             if(!p->vec_->is_value_static())
-              p->value_name_ = prototype_value_generation(p->scalartype_);
+              p->value_name_ = prototype_value_generation(p->scalartype_, (void *)p->vec_);
             if(p->vec_->index().first)
-              p->index_name_ = prototype_value_generation(p->scalartype_);
+              p->index_name_ = prototype_value_generation(p->scalartype_, (void *)p->vec_);
           }
 
           template<typename T>
           void vector_prototype(symbolic_vector<T> * p) const {
-            p->name_ = prototype_pointer_generation(p->scalartype_, p->vec_->handle().opencl_handle());
+            p->name_ = prototype_pointer_generation(p->scalartype_, (void *)p->vec_);
             if(p->vec_->start() > 0)
-              p->start_name_ = prototype_value_generation(p->scalartype_);
+              p->start_name_ = prototype_value_generation(p->scalartype_, (void *)p->vec_);
             if(p->vec_->stride() > 1)
-              p->shift_name_ = prototype_value_generation(p->scalartype_);
+              p->shift_name_ = prototype_value_generation(p->scalartype_, (void *)p->vec_);
           }
 
         public:
-          prototype_generation_traversal(std::map<cl_mem, std::size_t> & memory, mapping_type & mapping, std::string & str, std::size_t & current_arg) : memory_(memory), mapping_(mapping), str_(str), current_arg_(current_arg) { }
+          prototype_generation_traversal(std::map<void*, std::size_t> & memory, mapping_type & mapping, std::string & str, std::size_t & current_arg) : memory_(memory), mapping_(mapping), str_(str), current_arg_(current_arg) { }
 
           void call_on_leaf(std::size_t index, leaf_type lhs_rhs, statement_node const & node, statement::container_type const * array) const {
             statement_node_type type;
