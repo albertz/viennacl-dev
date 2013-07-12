@@ -39,31 +39,21 @@ namespace viennacl{
   namespace generator{
 
     class saxpy_vector_profile : public profile_base{
-
       public:
-
-        /** @brief The user constructor */
-        saxpy_vector_profile(unsigned int vectorization, unsigned int loop_unroll, size_t group_size0) : profile_base(vectorization){
+        /** @brief The constructor */
+        saxpy_vector_profile(unsigned int vectorization, unsigned int loop_unroll, size_t group_size) : profile_base(vectorization){
           loop_unroll_ = loop_unroll;
-          group_size_ = group_size0;
+          group_size_ = group_size;
         }
 
-        /** @brief Returns the unrolling factor */
-        unsigned int loop_unroll() const{ return loop_unroll_; }
-
-        /** @brief Return the group sizes used by this kernel */
-        std::pair<size_t,size_t> local_work_size() const{ return std::make_pair(group_size_,1); }
-
-        /** @brief returns whether or not the profile leads to undefined behavior on particular device
-         *  @param dev the given device*/
-        bool is_invalid(viennacl::ocl::device const & dev, size_t scalartype_size) const {
-          return profile_base::invalid_base(dev,0);
+        void set_local_sizes(std::size_t & x, std::size_t & y) const {
+          x = group_size_;
+          y = 1;
         }
 
-        void kernel_arguments(std::string & arguments_string){
+        static void kernel_arguments(std::string & arguments_string){
           arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
         }
-
       private:
         unsigned int loop_unroll_;
         unsigned int group_size_;
@@ -96,9 +86,6 @@ namespace viennacl{
 
       stream.dec_tab();
       stream << "}" << std::endl;
-
-//      for(std::list<tools::shared_ptr<symbolic_binary_expression_tree_infos_base> >::iterator it = expressions_.begin(); it != expressions_.end() ; ++it)
-//        (*it)->clear_private_value();
     }
 
   }

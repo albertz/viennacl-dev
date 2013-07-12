@@ -38,32 +38,33 @@ namespace viennacl{
     /** @brief Base class for an optimization profile */
     class profile_base{
       protected:
-        typedef unsigned int size_type;
-      protected:
-        bool invalid_base(viennacl::ocl::device const & dev, size_t lmem_used) const{
-          //Query profile informations
-          std::pair<size_t, size_t> workgroup_size = local_work_size();
-
-          //Query device informations
-          size_t lmem_available = viennacl::ocl::info<CL_DEVICE_LOCAL_MEM_SIZE>(dev.id());
-          size_t max_workgroup_size = viennacl::ocl::info<CL_DEVICE_MAX_WORK_GROUP_SIZE>(dev.id());
-          std::vector<size_t> max_work_item_sizes = viennacl::ocl::info<CL_DEVICE_MAX_WORK_ITEM_SIZES>(dev.id());
-
-          bool invalid_work_group_sizes = workgroup_size.first*workgroup_size.second > max_workgroup_size; // uses too much resources
-          invalid_work_group_sizes = invalid_work_group_sizes || workgroup_size.first > max_work_item_sizes[0];
-          if(max_work_item_sizes.size()>1) invalid_work_group_sizes = invalid_work_group_sizes || workgroup_size.second > max_work_item_sizes[1];
-
-          return  invalid_work_group_sizes
-              || lmem_used>lmem_available;
-        }
+        virtual bool invalid_impl(viennacl::ocl::device const & dev, size_t scalartype_size) const{ return false; }
+        virtual std::size_t lmem_used(std::size_t scalartype_size) const { return 0; }
       public:
         profile_base(unsigned int vectorization) : vectorization_(vectorization){ }
-        unsigned int vectorization() const{ return vectorization_; }
-        virtual std::pair<size_t,size_t> local_work_size() const = 0;
-        virtual bool is_invalid(viennacl::ocl::device const & dev, size_t scalartype_size) const = 0;
-        virtual void set_state(unsigned int i) const { }
+
+        virtual void set_local_sizes(std::size_t & x, std::size_t & y) const = 0;
+
+        /** @brief returns whether or not the profile leads to undefined behavior on particular device
+         *  @param dev the given device*/
+        bool is_invalid(viennacl::ocl::device const & dev, size_t scalartype_size) const{
+          //Query profile informations
+          std::size_t size1, size2;
+          set_local_sizes(size1, size2);
+
+          //Query device informations
+          size_t lmem_available = dev.local_mem_size();
+          size_t max_workgroup_size = dev.max_work_group_size();
+          std::vector<size_t> max_work_item_sizes = dev.max_work_item_sizes();
+
+          bool invalid_work_group_sizes = size1*size2 > max_workgroup_size; // uses too much resources
+          invalid_work_group_sizes = invalid_work_group_sizes || size1 > max_work_item_sizes[0];
+          if(max_work_item_sizes.size()>1) invalid_work_group_sizes = invalid_work_group_sizes || size2 > max_work_item_sizes[1];
+
+          return  invalid_work_group_sizes || lmem_used(scalartype_size)>lmem_available || invalid_impl(dev, scalartype_size);
+        }
+
         virtual ~profile_base(){ }
-        //          virtual display(std::ostream & os) = 0;
       protected:
         unsigned int vectorization_;
     };

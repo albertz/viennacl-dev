@@ -76,7 +76,6 @@ namespace viennacl{
 
 
       class expression_generation_traversal : public traversal_functor{
-
         private:
           utils::kernel_generation_stream & stream_;
           mapping_type const & mapping_;
@@ -103,17 +102,13 @@ namespace viennacl{
       class symbolic_container{
         private:
           std::string generate_scalartype(statement_node_type type){
-    #define MAKE_CASE(ref, scalartype) if(type==ref) return scalartype;
-            //vector:
-            MAKE_CASE(VECTOR_FLOAT_TYPE, "float");
+            switch(type){
+              case VECTOR_FLOAT_TYPE : return "float";
 
-            //symbolic vector:
-            MAKE_CASE(VECTOR_INITIALIZER_FLOAT_TYPE, "float");
-
-            throw "unrecognized type";
-    #undef MAKE_CASE
+              case VECTOR_INITIALIZER_FLOAT_TYPE : return "float";
+              default: throw "unrecognized type";
+            }
           }
-
           virtual void generate_impl(utils::kernel_generation_stream & stream) const = 0;
 
         protected:
@@ -122,7 +117,6 @@ namespace viennacl{
 
         public:
           symbolic_container(statement_node_type type) : scalartype_(generate_scalartype(type)){ }
-
           virtual void fetch(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
           virtual void write_back(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
           void generate(utils::kernel_generation_stream & stream) const{
@@ -131,9 +125,10 @@ namespace viennacl{
             else
               generate_impl(stream);
           }
-
           virtual ~symbolic_container(){ }
       };
+
+
 
       class symbolic_host_scalar : public symbolic_container{
           friend class prototype_generation_traversal;
@@ -174,6 +169,7 @@ namespace viennacl{
                 detail::generate(stream,*mapping_->at(std::make_pair(node_index_, RHS_LEAF_TYPE)));
               stream << ']';
           }
+
         public:
           symbolic_vector(statement_node_type type, vector_base<SCALARTYPE> const * vec) : symbolic_container(type), vec_(vec){ }
 
@@ -216,30 +212,29 @@ namespace viennacl{
         s.generate(stream);
       }
 
-#define MAKE_CASE(ref,str) if(arg==ref) return str;
 
-      const char * generate(operation_node_type arg){
+      const char * generate(operation_node_type type){
         // unary expression
-        MAKE_CASE(OPERATION_UNARY_ABS_TYPE, "abs")
+        switch(type){
+          case OPERATION_UNARY_ABS_TYPE : return "abs";
 
-       // binary expression
-       MAKE_CASE(OPERATION_BINARY_ASSIGN_TYPE, "=")
-       MAKE_CASE(OPERATION_BINARY_ADD_TYPE, "+")
-       MAKE_CASE(OPERATION_BINARY_ACCESS, "")
+          case OPERATION_BINARY_ASSIGN_TYPE : return "=";
+          case OPERATION_BINARY_ADD_TYPE : return "+";
+          case OPERATION_BINARY_ACCESS : return "";
 
-       throw "missing operator";
+          default : throw "not implemented";
+        }
       }
 
-      const char * generate(statement_node_type arg){
-        MAKE_CASE(COMPOSITE_OPERATION_TYPE,"")
+      const char * generate(statement_node_type type){
+        switch(type){
+          case COMPOSITE_OPERATION_TYPE : return "";
 
-        //vector
-        MAKE_CASE(VECTOR_FLOAT_TYPE,"vecf")
-
-        throw "missing node";
+          case VECTOR_FLOAT_TYPE : return "vf";
+          default : throw "not implemented";
+        }
       }
 
-#undef MAKE_CASE
 
       template<class TraversalFunctor>
       void traverse(statement::container_type const & array, TraversalFunctor const & fun, bool stop_recursion_on_access = false, std::size_t index = 0){
@@ -294,7 +289,6 @@ namespace viennacl{
       };
 
       class prototype_generation_traversal : public traversal_functor{
-
           std::map<void *, std::size_t> & memory_;
           mapping_type & mapping_;
           std::string & str_;
@@ -302,25 +296,23 @@ namespace viennacl{
 
 
           std::string prototype_value_generation(std::string const & scalartype, void * handle) const{
-            std::string name;
             if(memory_.insert(std::make_pair(handle, current_arg_)).second){
-              name =  "arg" + utils::to_string(current_arg_++);
+              std::string name =  "arg" + utils::to_string(current_arg_++);
               str_ += detail::generate_value_kernel_argument(scalartype, name);
+              return name;
             }
             else
-              name = "arg" + utils::to_string(memory_.at(handle));
-            return name;
+              return "arg" + utils::to_string(memory_.at(handle));
           }
 
           std::string prototype_pointer_generation(std::string const & scalartype, void * handle) const {
-            std::string name;
             if(memory_.insert(std::make_pair(handle, current_arg_)).second){
-              name =  "arg" + utils::to_string(current_arg_++);
+              std::string name =  "arg" + utils::to_string(current_arg_++);
               str_ += detail::generate_pointer_kernel_argument("__global", scalartype, name);
+              return name;
             }
             else
-              name = "arg" + utils::to_string(memory_.at(handle));
-            return name;
+              return "arg" + utils::to_string(memory_.at(handle));
           }
 
           void host_scalar_prototype(symbolic_host_scalar * p) const {
@@ -345,6 +337,7 @@ namespace viennacl{
           }
 
         public:
+
           prototype_generation_traversal(std::map<void*, std::size_t> & memory, mapping_type & mapping, std::string & str, std::size_t & current_arg) : memory_(memory), mapping_(mapping), str_(str), current_arg_(current_arg) { }
 
           void call_on_leaf(std::size_t index, leaf_type lhs_rhs, statement_node const & node, statement::container_type const * array) const {
@@ -361,7 +354,6 @@ namespace viennacl{
               type_family = node.rhs_type_family_;
               element = node.rhs_;
             }
-
             if(type_family==HOST_SCALAR_TYPE_FAMILY){
               symbolic_host_scalar * p = new symbolic_host_scalar(type);
               mapping_.insert(std::make_pair(std::make_pair(index, lhs_rhs), tools::shared_ptr<symbolic_container>(p)));

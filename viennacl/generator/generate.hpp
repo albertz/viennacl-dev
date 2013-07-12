@@ -43,6 +43,31 @@ namespace viennacl{
       return res;
     }
 
+    enum operation_type_family{
+      SAXPY_VECTOR,
+      SAXPY_MATRIX,
+      DOT,
+      GEMV,
+      GEMM
+    };
+
+    operation_type_family type_family_of(typename statement::container_type const & expr){
+      switch (expr[0].lhs_type_family_) {
+        case VECTOR_TYPE_FAMILY:
+            return SAXPY_VECTOR;
+          break;
+        case MATRIX_ROW_TYPE_FAMILY:
+          throw "not implemented";
+          break;
+        case MATRIX_COL_TYPE_FAMILY:
+          throw "not implemented";
+          break;
+        default:
+          throw "not implemented";
+          break;
+      }
+    }
+
     template<class InputIterator>
     std::string make_program_string(InputIterator first, InputIterator last){
       std::map<void *, std::size_t> memory;
@@ -61,28 +86,36 @@ namespace viennacl{
       kss << std::endl;
 
       statement first_statement = *first;
-      typename statement::container_type const & expr = first_statement.array();
-      saxpy_vector_profile profile(1,4,128);
+      switch(type_family_of(first_statement.array())){
+        case SAXPY_VECTOR:
+        {
+          saxpy_vector_profile profile(1,4,128);
 
-      //Prototype generation
-      kss << "__kernel void kernel_0(" << std::endl;
-      std::string prototype;
-      profile.kernel_arguments(prototype);
-      std::size_t current_arg = 0;
-      std::size_t i = 0;
-      for(InputIterator it = first ; it != last ; ++it)
-        detail::traverse(it->array(), detail::prototype_generation_traversal(memory, mapping[i++], prototype, current_arg),false);
-      prototype.erase(prototype.size()-1); //Last comma pruned
-      kss << prototype << std::endl;
-      kss << ")" << std::endl;
-      kss << "{" << std::endl;
-      kss.inc_tab();
+          //Prototype generation
+          kss << "__kernel void kernel_0(" << std::endl;
+          std::string prototype;
+          profile.kernel_arguments(prototype);
+          std::size_t current_arg = 0;
+          std::size_t i = 0;
+          for(InputIterator it = first ; it != last ; ++it)
+            detail::traverse(it->array(), detail::prototype_generation_traversal(memory, mapping[i++], prototype, current_arg),false);
+          prototype.erase(prototype.size()-1); //Last comma pruned
+          kss << prototype << std::endl;
+          kss << ")" << std::endl;
+          kss << "{" << std::endl;
+          kss.inc_tab();
 
-      //body generation
-      generate_saxpy_vector(profile, kss, first, last, mapping);
+          //body generation
+          generate_saxpy_vector(profile, kss, first, last, mapping);
 
-      kss.dec_tab();
-      kss << "}" << std::endl;
+          kss.dec_tab();
+          kss << "}" << std::endl;
+          break;
+        }
+        default:
+          throw "not implemented";
+          break;
+      }
       return kss.str();
     }
 
