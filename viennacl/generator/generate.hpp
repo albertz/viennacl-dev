@@ -36,13 +36,6 @@ namespace viennacl{
 
     using namespace viennacl::scheduler;
 
-    std::string make_program_name(std::vector<scheduler::statement> const & statements){
-      std::string res;
-      for(std::vector<scheduler::statement>::const_iterator it = statements.begin() ; it != statements.end() ; ++it)
-        detail::traverse(it->array(), detail::name_generation_traversal(res));
-      return res;
-    }
-
     enum operation_type_family{
       SAXPY_VECTOR,
       SAXPY_MATRIX,
@@ -68,56 +61,76 @@ namespace viennacl{
       }
     }
 
-    template<class InputIterator>
-    std::string make_program_string(InputIterator first, InputIterator last){
-      std::map<void *, std::size_t> memory;
-      std::size_t size = std::distance(first,last);
-      std::vector<detail::mapping_type> mapping(size);
+    class code_generator{
+      private:
+        typedef std::vector<scheduler::statement> statements_type;
+      private:
+        std::vector<detail::mapping_type> mapping_;
+        statements_type statements_;
+        saxpy_vector_profile saxpy_profile_;
 
-      utils::kernel_generation_stream kss;
-
-      //Headers generation
-      kss << "#if defined(cl_khr_fp64)\n";
-      kss <<  "#  pragma OPENCL EXTENSION cl_khr_fp64: enable\n";
-      kss <<  "#elif defined(cl_amd_fp64)\n";
-      kss <<  "#  pragma OPENCL EXTENSION cl_amd_fp64: enable\n";
-      kss <<  "#endif\n";
-
-      kss << std::endl;
-
-      statement first_statement = *first;
-      switch(type_family_of(first_statement.array())){
-        case SAXPY_VECTOR:
-        {
-          saxpy_vector_profile profile(1,4,128);
-
-          //Prototype generation
+      private:
+        template<class Profile>
+        void generate(Profile const & profile, utils::kernel_generation_stream & kss){
+          //prototype:
+          std::map<void *, std::size_t> memory;
           kss << "__kernel void kernel_0(" << std::endl;
           std::string prototype;
           profile.kernel_arguments(prototype);
           std::size_t current_arg = 0;
           std::size_t i = 0;
-          for(InputIterator it = first ; it != last ; ++it)
-            detail::traverse(it->array(), detail::prototype_generation_traversal(memory, mapping[i++], prototype, current_arg),false);
+          for(typename statements_type::iterator it = statements_.begin() ; it != statements_.end() ; ++it)
+            detail::traverse(it->array(), detail::prototype_generation_traversal(memory, mapping_[i++], prototype, current_arg),false);
           prototype.erase(prototype.size()-1); //Last comma pruned
           kss << prototype << std::endl;
           kss << ")" << std::endl;
+
+          //core:
           kss << "{" << std::endl;
           kss.inc_tab();
-
-          //body generation
-          generate_saxpy_vector(profile, kss, first, last, mapping);
-
+          generate_saxpy_vector(profile, kss, statements_.begin(), statements_.end(), mapping_);
           kss.dec_tab();
           kss << "}" << std::endl;
-          break;
         }
-        default:
-          throw "not implemented";
-          break;
-      }
-      return kss.str();
-    }
+
+      public:
+        code_generator() : saxpy_profile_(1,4,128) { }
+
+        void add_statement(scheduler::statement const & s) { statements_.push_back(s); }
+
+        std::string make_program_name(){
+          std::string res;
+          for(std::vector<scheduler::statement>::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it)
+            detail::traverse(it->array(), detail::name_generation_traversal(res));
+          return res;
+        }
+
+        std::string make_program_string(){
+          std::size_t size = statements_.size();
+          mapping_.resize(size);
+
+          utils::kernel_generation_stream kss;
+
+          //Headers generation
+          kss << "#if defined(cl_khr_fp64)\n";
+          kss <<  "#  pragma OPENCL EXTENSION cl_khr_fp64: enable\n";
+          kss <<  "#elif defined(cl_amd_fp64)\n";
+          kss <<  "#  pragma OPENCL EXTENSION cl_amd_fp64: enable\n";
+          kss <<  "#endif\n";
+
+          kss << std::endl;
+
+          statement first_statement = statements_.front();
+          switch(type_family_of(first_statement.array())){
+            case SAXPY_VECTOR:  generate(saxpy_profile_, kss); break;
+            default:  throw "not implemented";  break;
+          }
+          return kss.str();
+        }
+    };
+
+
+
 
   }
 

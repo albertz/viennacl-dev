@@ -46,7 +46,7 @@ namespace viennacl{
           group_size_ = group_size;
         }
 
-        void set_local_sizes(std::size_t & x, std::size_t & y) const {
+        void set_local_sizes(std::size_t & x, std::size_t & y) const{
           x = group_size_;
           y = 1;
         }
