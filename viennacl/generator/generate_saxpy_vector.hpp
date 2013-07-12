@@ -65,7 +65,8 @@ namespace viennacl{
         unsigned int group_size_;
     };
 
-    void generate_saxpy_vector(saxpy_vector_profile const & prof, utils::kernel_generation_stream& stream, std::vector<viennacl::scheduler::statement> const & statements, std::vector<detail::mapping_type> & mapping){
+    template<class InputIterator>
+    void generate_saxpy_vector(saxpy_vector_profile const & prof, utils::kernel_generation_stream& stream, InputIterator first, InputIterator last, std::vector<detail::mapping_type> & mapping){
 
       stream << "for(unsigned int i = get_global_id(0) ; i < N ; i += get_global_size(0))" << std::endl;
       stream << "{" << std::endl;
@@ -78,9 +79,10 @@ namespace viennacl{
           it2->second->fetch(fetched, stream);
 
 
-      for(std::size_t i = 0 ; i < statements.size() ; ++i){
-        detail::traverse(statements[i].array(), detail::expression_generation_traversal(stream,mapping[i]), true);
-        stream << ";" << std::endl;
+      std::size_t i = 0;
+      for(InputIterator it = first ; it != last ; ++it){
+          detail::traverse(it->array(), detail::expression_generation_traversal(stream,mapping[i++]), true);
+          stream << ";" << std::endl;
       }
 
       //Writes back

@@ -289,10 +289,10 @@ namespace viennacl{
 
       class prototype_generation_traversal : public traversal_functor{
 
-          mutable unsigned int current_arg_;
           std::map<cl_mem, std::size_t> & memory_;
           mapping_type & mapping_;
           std::string & str_;
+          std::size_t & current_arg_;
 
 
           std::string prototype_value_generation(std::string const & scalartype) const{
@@ -334,7 +334,7 @@ namespace viennacl{
           }
 
         public:
-          prototype_generation_traversal(std::map<cl_mem, std::size_t> & memory, mapping_type & mapping, std::string & str) : current_arg_(0), memory_(memory), mapping_(mapping), str_(str) { }
+          prototype_generation_traversal(std::map<cl_mem, std::size_t> & memory, mapping_type & mapping, std::string & str, std::size_t & current_arg) : memory_(memory), mapping_(mapping), str_(str), current_arg_(current_arg) { }
 
           void call_on_leaf(std::size_t index, leaf_type lhs_rhs, statement_node const & node, statement::container_type const * array) const {
             statement_node_type type;

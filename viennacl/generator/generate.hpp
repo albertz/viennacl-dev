@@ -43,9 +43,10 @@ namespace viennacl{
       return res;
     }
 
-    std::string make_program_string(std::vector<scheduler::statement> const & statements){
+    template<class InputIterator>
+    std::string make_program_string(InputIterator first, InputIterator last){
       std::map<cl_mem, std::size_t> memory;
-      std::size_t size = statements.size();
+      std::size_t size = std::distance(first,last);
       std::vector<detail::mapping_type> mapping(size);
 
       utils::kernel_generation_stream kss;
@@ -62,8 +63,10 @@ namespace viennacl{
       //Prototype generation
       kss << "__kernel void kernel_0(" << std::endl;
       std::string prototype;
-      for(std::size_t i = 0 ; i < size ; ++i)
-        detail::traverse(statements[i].array(), detail::prototype_generation_traversal(memory, mapping[i], prototype),false);
+      std::size_t current_arg = 0;
+      std::size_t i = 0;
+      for(InputIterator it = first ; it != last ; ++it)
+        detail::traverse(it->array(), detail::prototype_generation_traversal(memory, mapping[i++], prototype, current_arg),false);
       prototype.erase(prototype.size()-1); //Last comma pruned
       kss << prototype << std::endl;
       kss << ")" << std::endl;
@@ -71,7 +74,7 @@ namespace viennacl{
       kss.inc_tab();
 
       //body generation
-      generate_saxpy_vector(saxpy_vector_profile(1,4,128), kss, statements, mapping);
+      generate_saxpy_vector(saxpy_vector_profile(1,4,128), kss, first, last, mapping);
 
       kss.dec_tab();
       kss << "}" << std::endl;
