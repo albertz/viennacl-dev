@@ -146,6 +146,9 @@ namespace viennacl
   template<class SCALARTYPE, unsigned int ALIGNMENT>
   class const_vector_iterator;
 
+  template<class SCALARTYPE>
+  class symbolic_vector_base;
+
   template <typename SCALARTYPE>
   class unit_vector;
 
@@ -265,6 +268,18 @@ namespace viennacl
 
   template<class SCALARTYPE, unsigned int ALIGNMENT = 1>
   class vandermonde_matrix;
+
+  template<class SCALARTYPE>
+  class symbolic_matrix_base;
+
+  template<class SCALARTYPE>
+  class identity_matrix;
+
+  template<class SCALARTYPE>
+  class zero_matrix;
+
+  template<class SCALARTYPE>
+  class scalar_matrix;
 
   //
   // Proxies:

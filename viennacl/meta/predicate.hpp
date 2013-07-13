@@ -108,6 +108,8 @@ namespace viennacl
   VIENNACL_MAKE_ANY_VECTOR_TRUE(type<double>)
 
     VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::vector)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::vector_range)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::vector_slice)
     VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::unit_vector)
     VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::zero_vector)
     VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::one_vector)
@@ -115,6 +117,28 @@ namespace viennacl
 
 #undef VIENNACL_MAKE_FOR_ALL_SCALARTYPE
 #undef VIENNACL_MAKE_ANY_VECTOR_TRUE
+
+
+    //
+    // is_any_matrix : checks for either matrix_base or symbolic_matrix_base
+    //
+    template<typename T>
+    struct is_any_dense_matrix { enum { value = 0 }; };
+#define VIENNACL_MAKE_ANY_MATRIX_TRUE(type) template<> struct is_any_dense_matrix< type > { enum { value = 1 }; };
+#define VA_ARGS(...) , ##__VA_ARGS__
+#define VIENNACL_MAKE_FOR_ALL_SCALARTYPE(type, ...) \
+  VIENNACL_MAKE_ANY_MATRIX_TRUE(type<float>)\
+  VIENNACL_MAKE_ANY_MATRIX_TRUE(type<double>)
+
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::matrix)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::matrix_range)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::matrix_slice)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::identity_matrix)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::zero_matrix)
+    VIENNACL_MAKE_FOR_ALL_SCALARTYPE(viennacl::scalar_matrix)
+
+#undef VIENNACL_MAKE_FOR_ALL_SCALARTYPE
+#undef VIENNACL_MAKE_ANY_MATRIX_TRUE
 
     //
     // is_row_major

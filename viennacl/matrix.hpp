@@ -34,69 +34,67 @@
 
 namespace viennacl
 {
+
+  template<typename SCALARTYPE>
+  class symbolic_matrix_base
+  {
+    protected:
+      typedef vcl_size_t        size_type;
+      symbolic_matrix_base(size_type size1, size_type size2, std::pair<SCALARTYPE, bool> value, bool diag) : size1_(size1), size2_(size2), value_(value), diag_(diag){ }
+    public:
+      typedef SCALARTYPE const & const_reference;
+
+      size_type size1() const { return size1_; }
+      size_type size2() const { return size2_; }
+
+      SCALARTYPE  value() const { return value_.first; }
+      bool is_value_static() const { return value_.second; }
+
+      const_reference operator()(size_type i, size_type j) const {
+        if(diag_) return (i == j) ? value_.first : 0;
+        return value_.first;
+      }
+
+    protected:
+      size_type size1_;
+      size_type size2_;
+      std::pair<SCALARTYPE, bool> value_;
+      bool diag_;
+  };
+
   //
   // Initializer types
   //
-  /** @brief Represents a vector consisting of 1 at a given index and zeros otherwise. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
+  /** @brief Represents the identity matrix */
   template <typename SCALARTYPE>
-  class identity_matrix
+  class identity_matrix : public symbolic_matrix_base<SCALARTYPE>
   {
+      typedef symbolic_matrix_base<SCALARTYPE> base_type;
     public:
-      typedef vcl_size_t         size_type;
-      typedef SCALARTYPE const & const_reference;
-
-      identity_matrix(size_type s) : size_(s), diag_(1), off_diag_(0) {}
-
-      size_type size1() const { return size_; }
-      size_type size2() const { return size_; }
-      const_reference operator()(size_type i, size_type j) const { return (i == j) ? diag_ : off_diag_; }
-
-    private:
-      size_type size_;
-      SCALARTYPE diag_;
-      SCALARTYPE off_diag_;
+      typedef typename base_type::size_type size_type;
+      identity_matrix(size_type s) : base_type(s,s,std::make_pair(1,true),true) {}
   };
 
 
-  /** @brief Represents a vector consisting of zeros only. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
+  /** @brief Represents a matrix consisting of zeros only. */
   template <typename SCALARTYPE>
   class zero_matrix
   {
+      typedef symbolic_matrix_base<SCALARTYPE> base_type;
     public:
-      typedef vcl_size_t         size_type;
-      typedef SCALARTYPE const & const_reference;
-
-      zero_matrix(size_type s1, size_type s2) : size1_(s1), size2_(s2), val_(0) {}
-
-      size_type size1() const { return size1_; }
-      size_type size2() const { return size2_; }
-      const_reference operator()(size_type /*i*/, size_type /*j*/) const { return val_; }
-
-    private:
-      size_type size1_;
-      size_type size2_;
-      SCALARTYPE val_;
+      typedef typename base_type::size_type size_type;
+      zero_matrix(size_type s1, size_type s2) : base_type(s1, s2,std::make_pair(0,true),false){}
   };
 
 
-  /** @brief Represents a vector consisting of scalars 's' only, i.e. v[i] = s for all i. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
+  /** @brief Represents a matrix consisting of scalars 's' only, i.e. m(i,j) = s for all i,j.*/
   template <typename SCALARTYPE>
   class scalar_matrix
   {
+      typedef symbolic_matrix_base<SCALARTYPE> base_type;
     public:
-      typedef vcl_size_t         size_type;
-      typedef SCALARTYPE const & const_reference;
-
-      scalar_matrix(size_type s1, size_type s2, const_reference val) : size1_(s1), size2_(s2), value_(val) {}
-
-      size_type size1() const { return size1_; }
-      size_type size2() const { return size2_; }
-      const_reference operator()(size_type /*i*/, size_type /*j*/) const { return value_; }
-
-    private:
-      size_type size1_;
-      size_type size2_;
-      SCALARTYPE value_;
+      typedef typename base_type::size_type size_type;
+      scalar_matrix(size_type s1, size_type s2, typename base_type::const_reference val) : base_type(s1, s2,std::make_pair(val,false),false){}
   };
 
 
@@ -1068,6 +1066,7 @@ namespace viennacl
 
 
   // operator +
+
   /** @brief Generic 'catch-all' overload, which enforces a temporary if the expression tree gets too deep. */
   template <typename LHS1, typename RHS1, typename OP1,
             typename LHS2, typename RHS2, typename OP2>
@@ -1086,44 +1085,47 @@ namespace viennacl
   }
 
   template <typename LHS1, typename RHS1, typename OP1,
-            typename NumericT, typename F>
-  matrix_expression< const matrix_expression<const LHS1, const RHS1, OP1>,
-                     const matrix_base<NumericT, F>,
-                     op_add>
+            typename T>
+  typename viennacl::enable_if<viennacl::is_any_dense_matrix<T>::value,
+                                matrix_expression< const matrix_expression<const LHS1, const RHS1, OP1>,
+                                                   T,
+                                                   op_add> >::type
   operator + (matrix_expression<const LHS1, const RHS1, OP1> const & proxy1,
-              matrix_base<NumericT, F> const & proxy2)
+              T const & proxy2)
   {
     assert(    (viennacl::traits::size1(proxy1) == viennacl::traits::size1(proxy2))
             && (viennacl::traits::size2(proxy1) == viennacl::traits::size2(proxy2))
             && bool("Incompatible matrix sizes!"));
     return matrix_expression< const matrix_expression<const LHS1, const RHS1, OP1>,
-                              const matrix_base<NumericT, F>,
+                              const T,
                               op_add>(proxy1, proxy2);
   }
 
-  template <typename NumericT, typename F,
+  template <typename T,
             typename LHS2, typename RHS2, typename OP2>
-  matrix_expression< const matrix_base<NumericT, F>,
-                     const matrix_expression<const LHS2, const RHS2, OP2>,
-                     op_add>
-  operator + (matrix_base<NumericT, F> const & proxy1,
+  typename viennacl::enable_if<viennacl::is_any_dense_matrix<T>::value,
+                              matrix_expression< const T,
+                                                 const matrix_expression<const LHS2, const RHS2, OP2>,
+                                                 op_add> >::type
+  operator + (T const & proxy1,
               matrix_expression<const LHS2, const RHS2, OP2> const & proxy2)
   {
     assert(    (viennacl::traits::size1(proxy1) == viennacl::traits::size1(proxy2))
             && (viennacl::traits::size2(proxy1) == viennacl::traits::size2(proxy2))
             && bool("Incompatible matrix sizes!"));
-    return  matrix_expression< const matrix_base<NumericT, F>,
+    return  matrix_expression< const T,
                                const matrix_expression<const LHS2, const RHS2, OP2>,
                                op_add>(proxy1, proxy2);
   }
 
   /** @brief Operator overload for m1 + m2, where m1 and m2 are either dense matrices, matrix ranges, or matrix slices. No mixing of different storage layouts allowed at the moment. */
-  template <typename NumericT, typename F>
-  matrix_expression< const matrix_base<NumericT, F>, const matrix_base<NumericT, F>, op_add >
-  operator + (const matrix_base<NumericT, F> & m1, const matrix_base<NumericT, F> & m2)
+  template <class T>
+  typename viennacl::enable_if<is_any_dense_matrix<T>::value,
+                              matrix_expression< const T, const T, op_add > >::type
+  operator + (const T & m1, const T & m2)
   {
-    return matrix_expression< const matrix_base<NumericT, F>,
-                              const matrix_base<NumericT, F>,
+    return matrix_expression< const T,
+                              const T,
                               op_add > (m1, m2);
   }
 

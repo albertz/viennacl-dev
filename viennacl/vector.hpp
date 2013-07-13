@@ -42,19 +42,34 @@ namespace viennacl
   //
 
   template<typename SCALARTYPE>
-  class vector_initializer_base
+  class symbolic_vector_base
   {
     protected:
       typedef vcl_size_t        size_type;
-      vector_initializer_base(size_type s, std::size_t i, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(true,i)), value_(v){ }
-      vector_initializer_base(size_type s, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(false,0)), value_(v){ }
+      symbolic_vector_base(size_type s, std::size_t i, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(true,i)), value_(v){ }
+      symbolic_vector_base(size_type s, std::pair<SCALARTYPE, bool> v) : size_(s), index_(std::make_pair(false,0)), value_(v){ }
+
     public:
       typedef SCALARTYPE const & const_reference;
 
       size_type size() const { return size_; }
+
       SCALARTYPE  value() const { return value_.first; }
+
       bool is_value_static() const { return value_.second; }
+
       std::pair<bool, std::size_t> index() const { return index_; }
+
+      const_reference operator()(size_type i) const {
+        if(index_.first) return (i==index_.second)?value_.first:0;
+        return value_.first;
+      }
+
+      const_reference operator[](size_type i) const {
+        if(index_.first) return (i==index_.second)?value_.first:0;
+        return value_.first;
+      }
+
     protected:
       size_type size_;
       std::pair<bool, std::size_t> index_;
@@ -63,9 +78,9 @@ namespace viennacl
 
   /** @brief Represents a vector consisting of 1 at a given index and zeros otherwise.*/
   template <typename SCALARTYPE>
-  class unit_vector : public vector_initializer_base<SCALARTYPE>
+  class unit_vector : public symbolic_vector_base<SCALARTYPE>
   {
-      typedef vector_initializer_base<SCALARTYPE> base_type;
+      typedef symbolic_vector_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
       unit_vector(size_type s, size_type ind) : base_type(s, ind, std::make_pair(1,true))
@@ -77,9 +92,9 @@ namespace viennacl
 
   /** @brief Represents a vector consisting of zeros only. */
   template <typename SCALARTYPE>
-  class zero_vector : public vector_initializer_base<SCALARTYPE>
+  class zero_vector : public symbolic_vector_base<SCALARTYPE>
   {
-      typedef vector_initializer_base<SCALARTYPE> base_type;
+      typedef symbolic_vector_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE        const_reference;
@@ -88,9 +103,9 @@ namespace viennacl
 
   /** @brief Represents a vector consisting of ones only. */
   template <typename SCALARTYPE>
-  class one_vector : public vector_initializer_base<SCALARTYPE>
+  class one_vector : public symbolic_vector_base<SCALARTYPE>
   {
-      typedef vector_initializer_base<SCALARTYPE> base_type;
+      typedef symbolic_vector_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE        const_reference;
@@ -100,9 +115,9 @@ namespace viennacl
 
   /** @brief Represents a vector consisting of scalars 's' only, i.e. v[i] = s for all i. To be used as an initializer for viennacl::vector, vector_range, or vector_slize only. */
   template <typename SCALARTYPE>
-  class scalar_vector : public vector_initializer_base<SCALARTYPE>
+  class scalar_vector : public symbolic_vector_base<SCALARTYPE>
   {
-      typedef vector_initializer_base<SCALARTYPE> base_type;
+      typedef symbolic_vector_base<SCALARTYPE> base_type;
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE const & const_reference;
@@ -1575,13 +1590,12 @@ namespace viennacl
 
   /** @brief Returns an expression template object for adding up two vectors, i.e. v1 + v2
   */
-  template <typename T, class U>
-  typename viennacl::enable_if<viennacl::is_any_vector<T>::value
-                             &&viennacl::is_any_vector<U>::value,
-                             vector_expression< const T, const U, op_add> >::type
-  operator + (const T & v1, const U & v2)
+  template <typename T>
+  typename viennacl::enable_if<viennacl::is_any_vector<T>::value,
+                             vector_expression< const T, const T, op_add> >::type
+  operator + (const T & v1, const T & v2)
   {
-    return vector_expression< const T, const U, op_add>(v1, v2);
+    return vector_expression< const T, const T, op_add>(v1, v2);
   }
 
 

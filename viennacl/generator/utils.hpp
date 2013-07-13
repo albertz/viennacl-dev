@@ -39,6 +39,11 @@ namespace viennacl{
         return ss.str();
       }
 
+      template<class T>
+      struct type_to_string;
+
+      template<> struct type_to_string<float> { static const std::string value() { return "float"; } };
+
       class kernel_generation_stream : public std::ostream{
         private:
 
@@ -73,6 +78,7 @@ namespace viennacl{
           unsigned int tab_count_;
           std::ostringstream oss;
       };
+
 
     }
 
