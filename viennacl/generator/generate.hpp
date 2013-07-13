@@ -27,7 +27,7 @@
 #include "viennacl/scheduler/forwards.h"
 
 #include "viennacl/generator/detail.hpp"
-#include "viennacl/generator/generate_saxpy_vector.hpp"
+#include "viennacl/generator/generate_saxpy.hpp"
 
 namespace viennacl{
 
@@ -37,28 +37,14 @@ namespace viennacl{
     using namespace viennacl::scheduler;
 
     enum operation_type_family{
-      SAXPY_VECTOR,
-      SAXPY_MATRIX,
+      SAXPY,
       DOT,
       GEMV,
       GEMM
     };
 
     operation_type_family type_family_of(typename statement::container_type const & expr){
-      switch (expr[0].lhs_type_family_) {
-        case VECTOR_TYPE_FAMILY:
-            return SAXPY_VECTOR;
-          break;
-        case MATRIX_ROW_TYPE_FAMILY:
-          throw "not implemented";
-          break;
-        case MATRIX_COL_TYPE_FAMILY:
-          throw "not implemented";
-          break;
-        default:
-          throw "not implemented";
-          break;
-      }
+      return SAXPY;
     }
 
     class code_generator{
@@ -67,7 +53,7 @@ namespace viennacl{
       private:
         std::vector<detail::mapping_type> mapping_;
         statements_type statements_;
-        saxpy_vector_profile saxpy_profile_;
+        saxpy_profile saxpy_profile_;
 
       private:
         template<class Profile>
@@ -88,13 +74,13 @@ namespace viennacl{
           //core:
           kss << "{" << std::endl;
           kss.inc_tab();
-          generate_saxpy_vector(profile, kss, statements_.begin(), statements_.end(), mapping_);
+          generate_saxpy(profile, kss, statements_.begin(), statements_.end(), mapping_);
           kss.dec_tab();
           kss << "}" << std::endl;
         }
 
       public:
-        code_generator() : saxpy_profile_(1,4,128) { }
+        code_generator() : saxpy_profile_(1,128,128,true) { }
 
         void add_statement(scheduler::statement const & s) { statements_.push_back(s); }
 
@@ -122,7 +108,7 @@ namespace viennacl{
 
           statement first_statement = statements_.front();
           switch(type_family_of(first_statement.array())){
-            case SAXPY_VECTOR:  generate(saxpy_profile_, kss); break;
+            case SAXPY:  generate(saxpy_profile_, kss); break;
             default:  throw "not implemented";  break;
           }
           return kss.str();

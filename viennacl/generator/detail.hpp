@@ -42,11 +42,12 @@ namespace viennacl{
 
       using namespace viennacl::scheduler;
 
+
       class mapped_container;
 
       template<class TraversalFunctor>
       void traverse(statement::container_type const & array, TraversalFunctor const & fun, bool use_extended_leaf = false, std::size_t index = 0);
-      void generate(utils::kernel_generation_stream & stream, mapped_container const & s);
+      void generate(std::string const & index, utils::kernel_generation_stream & stream, mapped_container const & s);
       const char * generate(operation_node_type arg);
       const char * generate(statement_node_type arg);
 
@@ -56,8 +57,14 @@ namespace viennacl{
       };
 
       typedef std::pair<std::size_t, leaf_type> leaf_descriptor;
-
       typedef std::map< leaf_descriptor, tools::shared_ptr<detail::mapped_container> > mapping_type;
+
+      struct expression_tree_ref{
+          std::size_t node_index_;
+          statement_node node_;
+          statement::container_type const * array_;
+          mapping_type const * mapping_;
+      };
 
       std::string generate_value_kernel_argument(std::string const & scalartype, std::string const & name){
         return scalartype + ' ' + name + ",";
@@ -77,12 +84,13 @@ namespace viennacl{
 
       class expression_generation_traversal : public traversal_functor{
         private:
+          std::string index_string_;
           utils::kernel_generation_stream & stream_;
           mapping_type const & mapping_;
         public:
-          expression_generation_traversal(utils::kernel_generation_stream & stream, mapping_type const & mapping) : stream_(stream), mapping_(mapping){ }
+          expression_generation_traversal(std::string const & index, utils::kernel_generation_stream & stream, mapping_type const & mapping) : index_string_(index), stream_(stream), mapping_(mapping){ }
           void call_on_leaf(std::size_t index, leaf_type lhs_rhs, statement_node const & node, statement::container_type const * array) const {
-            generate(stream_,*mapping_.at(std::make_pair(index, lhs_rhs)));
+            generate(index_string_, stream_,*mapping_.at(std::make_pair(index, lhs_rhs)));
           }
           void call_on_op(operation_node_type_family, operation_node_type type) const {
             stream_ << detail::generate(type);
@@ -101,7 +109,7 @@ namespace viennacl{
 
       class mapped_container{
         private:
-          virtual void generate_impl(utils::kernel_generation_stream & stream) const = 0;
+          virtual void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const = 0;
 
         protected:
           std::string scalartype_;
@@ -109,13 +117,13 @@ namespace viennacl{
 
         public:
           mapped_container(std::string const & scalartype) : scalartype_(scalartype){ }
-          virtual void fetch(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
-          virtual void write_back(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
-          void generate(utils::kernel_generation_stream & stream) const{
+          virtual void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
+          virtual void write_back(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
+          void generate(std::string const & index, utils::kernel_generation_stream & stream) const{
             if(!access_name_.empty())
               stream << access_name_;
             else
-              generate_impl(stream);
+              generate_impl(index, stream);
           }
           virtual ~mapped_container(){ }
       };
@@ -124,7 +132,7 @@ namespace viennacl{
           friend class prototype_generation_traversal;
           std::string name_;
 
-          void generate_impl(utils::kernel_generation_stream & stream) const{
+          void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const{
               stream << name_;
           }
         public:
@@ -132,51 +140,102 @@ namespace viennacl{
       };
 
 
+
+
       class mapped_vector : public mapped_container{
           friend class prototype_generation_traversal;
 
-          std::size_t node_index_;
-          statement_node node_;
-          statement::container_type const * array_;
-          mapping_type const * mapping_;
 
           std::string name_;
+
+          expression_tree_ref access_;
 
           std::string start_name_;
           std::string stride_name_;
           std::string shift_name_;
 
-          void generate_impl(utils::kernel_generation_stream & stream) const{
+          void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const{
               stream << name_;
               stream << '[' ;
-              if(mapping_==NULL)
-                stream << "i";
-              else if(node_.rhs_type_==COMPOSITE_OPERATION_TYPE)
-                traverse(*array_, expression_generation_traversal(stream,*mapping_), false, node_.rhs_.node_index_);
+              if(access_.mapping_==NULL)
+                stream << index;
+              else if(access_.node_.rhs_type_==COMPOSITE_OPERATION_TYPE)
+                traverse(*access_.array_, expression_generation_traversal(index, stream,*access_.mapping_), false, access_.node_.rhs_.node_index_);
               else
-                detail::generate(stream,*mapping_->at(std::make_pair(node_index_, RHS_LEAF_TYPE)));
+                detail::generate(index, stream,*access_.mapping_->at(std::make_pair(access_.node_index_, RHS_LEAF_TYPE)));
               stream << ']';
           }
 
         public:
           mapped_vector(std::string const & scalartype) : mapped_container(scalartype){ }
 
-          void fetch(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
+          void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
             std::string new_access_name = name_ + "_private";
             if(fetched.find(name_)==fetched.end()){
               stream << scalartype_ << " " << new_access_name << " = ";
-              generate(stream);
+              generate(index, stream);
               stream << ';' << std::endl;
               fetched.insert(name_);
             }
             access_name_ = new_access_name;
           }
 
-          void write_back(std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
+          void write_back(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
             std::string old_access_name = access_name_;
             access_name_.clear();
             if(fetched.find(name_)!=fetched.end()){
-              generate(stream);
+              generate(index, stream);
+              stream << " = " << old_access_name << ';' << std::endl;
+              fetched.erase(name_);
+            }
+          }
+      };
+
+
+      class mapped_matrix : public mapped_container{
+          friend class prototype_generation_traversal;
+
+
+          std::string name_;
+
+          expression_tree_ref access1_;
+          std::string start1_name_;
+          std::string stride1_name_;
+          std::string shift1_name_;
+
+          expression_tree_ref access2_;
+          std::string start2_name_;
+          std::string stride2_name_;
+          std::string shift2_name_;
+
+
+
+          void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const{
+              stream << name_;
+              stream << '[' ;
+              stream << index;
+              stream << ']';
+          }
+
+        public:
+          mapped_matrix(std::string const & scalartype) : mapped_container(scalartype){ }
+
+          void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
+            std::string new_access_name = name_ + "_private";
+            if(fetched.find(name_)==fetched.end()){
+              stream << scalartype_ << " " << new_access_name << " = ";
+              generate(index, stream);
+              stream << ';' << std::endl;
+              fetched.insert(name_);
+            }
+            access_name_ = new_access_name;
+          }
+
+          void write_back(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
+            std::string old_access_name = access_name_;
+            access_name_.clear();
+            if(fetched.find(name_)!=fetched.end()){
+              generate(index, stream);
               stream << " = " << old_access_name << ';' << std::endl;
               fetched.erase(name_);
             }
@@ -187,15 +246,27 @@ namespace viennacl{
           friend class prototype_generation_traversal;
           std::string value_name_;
           std::string index_name_;
-          void generate_impl(utils::kernel_generation_stream & stream) const{
+          bool is_value_static_;
+          void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const{
             stream << value_name_;
           }
         public:
           mapped_symbolic_vector(std::string const & scalartype) : mapped_container(scalartype){ }
       };
 
-      void generate(utils::kernel_generation_stream & stream, mapped_container const & s){
-        s.generate(stream);
+      class mapped_symbolic_matrix : public mapped_container{
+          friend class prototype_generation_traversal;
+          std::string value_name_;
+          bool is_diag_;
+          void generate_impl(utils::kernel_generation_stream & stream) const{
+            stream << value_name_;
+          }
+        public:
+          mapped_symbolic_matrix(std::string const & scalartype) : mapped_container(scalartype){ }
+      };
+
+      void generate(std::string const & index, utils::kernel_generation_stream & stream, mapped_container const & s){
+        s.generate(index, stream);
       }
 
 
@@ -328,10 +399,10 @@ namespace viennacl{
             mapped_vector * p = new mapped_vector(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
             if(array){
-              p->node_index_ = index;
-              p->node_ = node;
-              p->array_ = array;
-              p->mapping_ = &mapping_;
+              p->access_.node_index_ = index;
+              p->access_.node_ = node;
+              p->access_.array_ = array;
+              p->access_.mapping_ = &mapping_;
             }
             p->name_ = prototype_pointer_generation(p->scalartype_, element);
 
@@ -340,6 +411,25 @@ namespace viennacl{
               p->start_name_ = prototype_value_generation(p->scalartype_, element);
             if(vec->stride() > 1)
               p->shift_name_ = prototype_value_generation(p->scalartype_, element);
+          }
+
+          template<class ScalarType, class F>
+          void matrix_prototype(mapping_type::key_type const & key, void * element) const {
+            mapped_matrix * p = new mapped_matrix(utils::type_to_string<ScalarType>::value());
+            mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
+            p->name_ = prototype_pointer_generation(p->scalartype_, element);
+
+            matrix_base<ScalarType, F> * mat = static_cast< matrix_base<ScalarType, F> * >(element);
+            if(mat->start1() > 0)
+              p->start1_name_ = prototype_value_generation(p->scalartype_, element);
+            if(mat->stride1() > 1)
+              p->stride1_name_ = prototype_value_generation(p->scalartype_, element);
+
+            if(mat->start2() > 0)
+              p->start2_name_ = prototype_value_generation(p->scalartype_, element);
+            if(mat->stride2() > 1)
+              p->stride2_name_ = prototype_value_generation(p->scalartype_, element);
+
           }
 
 
@@ -353,6 +443,18 @@ namespace viennacl{
               p->value_name_ = prototype_value_generation(p->scalartype_, element);
             if(vec->index().first)
               p->index_name_ = prototype_value_generation(p->scalartype_, element);
+          }
+
+          template<class ScalarType>
+          void symbolic_matrix_prototype(mapping_type::key_type const & key, void * element) const {
+            mapped_symbolic_matrix * p = new mapped_symbolic_matrix(utils::type_to_string<ScalarType>::value());
+            mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
+
+            symbolic_matrix_base<ScalarType> * mat = static_cast< symbolic_matrix_base<ScalarType> * >(element);
+            if(!mat->is_value_static())
+              p->value_name_ = prototype_value_generation(p->scalartype_, element);
+            if(mat->diag())
+              p->is_diag_ = true;
           }
 
         public:
@@ -393,7 +495,24 @@ namespace viennacl{
                   default : throw "not implemented";
                 }
                 break;
-              default:
+              case MATRIX_ROW_TYPE_FAMILY:
+                switch(type){
+                  case MATRIX_ROW_FLOAT_TYPE : vector_prototype<float>(index, lhs_rhs, node, array, key, element.matrix_row_float_); break;
+                  default : throw "not implemented";
+                }
+                break;
+              case MATRIX_COL_TYPE_FAMILY:
+                switch(type){
+                  case MATRIX_COL_FLOAT_TYPE : vector_prototype<float>(index, lhs_rhs, node, array, key, element.matrix_col_float_); break;
+                  default : throw "not implemented";
+                }
+                break;
+              case SYMBOLIC_MATRIX_TYPE_FAMILY:
+                switch(type){
+                  case SYMBOLIC_MATRIX_FLOAT_TYPE : symbolic_vector_prototype<float>(key, element.symbolic_matrix_float_); break;
+                  default : throw "not implemented";
+                }
+                break;              default:
                 throw "not implemented";
 
             }

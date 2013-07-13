@@ -38,13 +38,13 @@ namespace viennacl{
 
   namespace generator{
 
-    class saxpy_vector_profile : public profile_base{
+    class saxpy_profile : public profile_base{
       public:
         /** @brief The constructor */
-        saxpy_vector_profile(unsigned int vectorization, unsigned int loop_unroll, size_t group_size) : profile_base(vectorization){
-          loop_unroll_ = loop_unroll;
-          group_size_ = group_size;
-        }
+        saxpy_profile(unsigned int vectorization, std::size_t group_size, std::size_t num_groups, bool global_decomposition) : profile_base(vectorization)
+                                                                                                , group_size_(group_size)
+                                                                                                , num_groups_(num_groups)
+                                                                                                , global_decomposition_(global_decomposition){ }
 
         void set_local_sizes(std::size_t & x, std::size_t & y) const{
           x = group_size_;
@@ -54,35 +54,47 @@ namespace viennacl{
         static void kernel_arguments(std::string & arguments_string){
           arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
         }
+
+
       private:
-        unsigned int loop_unroll_;
-        unsigned int group_size_;
+        std::size_t group_size_;
+        std::size_t num_groups_;
+        bool global_decomposition_;
     };
 
     template<class InputIterator>
-    void generate_saxpy_vector(saxpy_vector_profile const & prof, utils::kernel_generation_stream& stream, InputIterator first, InputIterator last, std::vector<detail::mapping_type> & mapping){
+    void generate_saxpy(saxpy_profile const & prof, utils::kernel_generation_stream& stream, InputIterator first, InputIterator last, std::vector<detail::mapping_type> & mapping){
 
       stream << "for(unsigned int i = get_global_id(0) ; i < N ; i += get_global_size(0))" << std::endl;
       stream << "{" << std::endl;
       stream.inc_tab();
 
+//      if(first_matrix->is_rowmajor()){
+//        kss << "unsigned int r = get_global_id(0)/" << first_matrix->internal_size2() << ";" << std::endl;
+//        kss << "unsigned int c = get_global_id(0)%" << first_matrix->internal_size2() << ";" << std::endl;
+//      }
+//      else{
+//        kss << "unsigned int r = get_global_id(0)%" << first_matrix->internal_size1() << ";" << std::endl;
+//        kss << "unsigned int c = get_global_id(0)/" << first_matrix->internal_size1() << ";" << std::endl;
+//      }
+
       //Fetches entries to registers
       std::set<std::string>  fetched;
       for(std::vector<detail::mapping_type>::iterator it = mapping.begin() ; it != mapping.end() ; ++it)
         for(detail::mapping_type::reverse_iterator it2 = it->rbegin() ; it2 != it->rend() ; ++it2)
-          it2->second->fetch(fetched, stream);
+          it2->second->fetch("i", fetched, stream);
 
 
       std::size_t i = 0;
       for(InputIterator it = first ; it != last ; ++it){
-          detail::traverse(it->array(), detail::expression_generation_traversal(stream,mapping[i++]), true);
+          detail::traverse(it->array(), detail::expression_generation_traversal("i", stream,mapping[i++]), true);
           stream << ";" << std::endl;
       }
 
       //Writes back
       for(std::vector<detail::mapping_type>::iterator it = mapping.begin() ; it != mapping.end() ; ++it)
         for(detail::mapping_type::iterator it2 = it->begin() ; it2 != it->end() ; ++it2)
-          it2->second->write_back(fetched, stream);
+          it2->second->write_back("i", fetched, stream);
 
       stream.dec_tab();
       stream << "}" << std::endl;

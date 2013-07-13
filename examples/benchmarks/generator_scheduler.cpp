@@ -63,6 +63,10 @@ int run_benchmark()
   viennacl::vector<ScalarType> vcl_vec1(BENCHMARK_VECTOR_SIZE);
   viennacl::vector<ScalarType> vcl_vec2(BENCHMARK_VECTOR_SIZE);
   viennacl::vector<ScalarType> vcl_vec3(BENCHMARK_VECTOR_SIZE);
+  viennacl::matrix<ScalarType> vcl_mat1(BENCHMARK_VECTOR_SIZE, BENCHMARK_VECTOR_SIZE);
+  viennacl::matrix<ScalarType> vcl_mat2(BENCHMARK_VECTOR_SIZE, BENCHMARK_VECTOR_SIZE);
+  viennacl::matrix<ScalarType> vcl_mat3(BENCHMARK_VECTOR_SIZE, BENCHMARK_VECTOR_SIZE);
+
 
 
   ///////////// Vector operations /////////////////
@@ -82,8 +86,8 @@ int run_benchmark()
   viennacl::backend::finish();
 
   viennacl::generator::code_generator generator;
-  generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), viennacl::linalg::element_abs(vcl_vec1) + vcl_vec3));
-  generator.add_statement(viennacl::scheduler::statement(vcl_vec2, viennacl::op_assign(), vcl_vec1));
+  generator.add_statement(viennacl::scheduler::statement(vcl_mat1, viennacl::op_assign(), viennacl::linalg::element_abs(vcl_mat1) + vcl_mat3));
+  generator.add_statement(viennacl::scheduler::statement(vcl_mat2, viennacl::op_assign(), vcl_mat1));
   std::cout << generator.make_program_string() << std::endl;
 
   return 0;

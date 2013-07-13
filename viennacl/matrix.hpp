@@ -48,7 +48,8 @@ namespace viennacl
       size_type size2() const { return size2_; }
 
       SCALARTYPE  value() const { return value_.first; }
-      bool is_value_static() const { return value_.second; }
+      bool is_value_static( ) const { return value_.second; }
+      bool diag() const { return diag_; }
 
       const_reference operator()(size_type i, size_type j) const {
         if(diag_) return (i == j) ? value_.first : 0;
@@ -1088,7 +1089,7 @@ namespace viennacl
             typename T>
   typename viennacl::enable_if<viennacl::is_any_dense_matrix<T>::value,
                                 matrix_expression< const matrix_expression<const LHS1, const RHS1, OP1>,
-                                                   T,
+                                                   const T,
                                                    op_add> >::type
   operator + (matrix_expression<const LHS1, const RHS1, OP1> const & proxy1,
               T const & proxy2)
