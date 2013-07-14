@@ -27,7 +27,7 @@
 #include "viennacl/scheduler/forwards.h"
 
 #include "viennacl/generator/detail.hpp"
-#include "viennacl/generator/generate_saxpy.hpp"
+#include "viennacl/generator/saxpy.hpp"
 
 namespace viennacl{
 
@@ -95,7 +95,7 @@ namespace viennacl{
 
           statement first_statement = statements_.front();
           switch(type_family_of(first_statement.array())){
-            case SAXPY:  generate(saxpy(saxpy_profile_, statements_), stream); break;
+            case SAXPY:  generate(saxpy(statements_, saxpy_profile_), stream); break;
             default:  throw "not implemented";  break;
           }
           return stream.str();
