@@ -107,46 +107,59 @@ namespace viennacl{
           std::string name_;
       };
 
+      /** @brief Base class for mapping viennacl datastructure to generator-friendly structures
+       */
       class mapped_container{
-        private:
-          virtual void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const = 0;
-
         protected:
           std::string scalartype_;
-          std::string access_name_;
 
         public:
           mapped_container(std::string const & scalartype) : scalartype_(scalartype){ }
+          std::string const & scalartype() { return scalartype_; }
           virtual void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
           virtual void write_back(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){ }
-          void generate(std::string const & index, utils::kernel_generation_stream & stream) const{
-            if(!access_name_.empty())
-              stream << access_name_;
-            else
-              generate_impl(index, stream);
-          }
+          virtual void generate(std::string const & index, utils::kernel_generation_stream & stream) const = 0;
           virtual ~mapped_container(){ }
       };
 
+      /** @brief Mapping of a host scalar to a generator class */
       class mapped_host_scalar : public mapped_container{
           friend class prototype_generation_traversal;
           std::string name_;
-
-          void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const{
-              stream << name_;
-          }
         public:
           mapped_host_scalar(std::string const & scalartype) : mapped_container(scalartype){ }
+          void generate(std::string const & index, utils::kernel_generation_stream & stream) const{
+              stream << name_;
+          }
       };
 
-
-
-
-      class mapped_vector : public mapped_container{
-          friend class prototype_generation_traversal;
-
-
+      /** @brief Base class for datastructures passed by pointer */
+      class mapped_handle : public mapped_container{
+        protected:
           std::string name_;
+          std::string access_name_;
+
+          virtual void offset(std::string const & index, utils::kernel_generation_stream & stream) const = 0;
+        public:
+          std::string const & name() { return name_; }
+          void access_name(std::string const & str) { access_name_ = str; }
+          std::string const & access_name() const { return access_name_; }
+          mapped_handle(std::string const & scalartype) : mapped_container(scalartype){ }
+          void generate(std::string const & index, utils::kernel_generation_stream & stream) const{
+            if(!access_name_.empty())
+              stream << access_name_;
+            else{
+              stream << name_;
+              stream << '[' ;
+              offset(index, stream);
+              stream << ']';
+            }
+          }
+      };
+
+      /** @brief Mapping of a vector to a generator class */
+      class mapped_vector : public mapped_handle{
+          friend class prototype_generation_traversal;
 
           expression_tree_ref access_;
 
@@ -154,49 +167,22 @@ namespace viennacl{
           std::string stride_name_;
           std::string shift_name_;
 
-          void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const{
-              stream << name_;
-              stream << '[' ;
-              if(access_.mapping_==NULL)
-                stream << index;
-              else if(access_.node_.rhs_type_==COMPOSITE_OPERATION_TYPE)
-                traverse(*access_.array_, expression_generation_traversal(index, stream,*access_.mapping_), false, access_.node_.rhs_.node_index_);
-              else
-                detail::generate(index, stream,*access_.mapping_->at(std::make_pair(access_.node_index_, RHS_LEAF_TYPE)));
-              stream << ']';
+          void offset(std::string const & index, utils::kernel_generation_stream & stream) const {
+            if(access_.mapping_==NULL)
+              stream << index;
+            else if(access_.node_.rhs_type_==COMPOSITE_OPERATION_TYPE)
+              traverse(*access_.array_, expression_generation_traversal(index, stream,*access_.mapping_), false, access_.node_.rhs_.node_index_);
+            else
+              detail::generate(index, stream,*access_.mapping_->at(std::make_pair(access_.node_index_, RHS_LEAF_TYPE)));
           }
 
         public:
-          mapped_vector(std::string const & scalartype) : mapped_container(scalartype){ }
-
-          void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
-            std::string new_access_name = name_ + "_private";
-            if(fetched.find(name_)==fetched.end()){
-              stream << scalartype_ << " " << new_access_name << " = ";
-              generate(index, stream);
-              stream << ';' << std::endl;
-              fetched.insert(name_);
-            }
-            access_name_ = new_access_name;
-          }
-
-          void write_back(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
-            std::string old_access_name = access_name_;
-            access_name_.clear();
-            if(fetched.find(name_)!=fetched.end()){
-              generate(index, stream);
-              stream << " = " << old_access_name << ';' << std::endl;
-              fetched.erase(name_);
-            }
-          }
+          mapped_vector(std::string const & scalartype) : mapped_handle(scalartype){ }
       };
 
-
-      class mapped_matrix : public mapped_container{
+      /** @brief Mapping of a matrix to a generator class */
+      class mapped_matrix : public mapped_handle{
           friend class prototype_generation_traversal;
-
-
-          std::string name_;
 
           expression_tree_ref access1_;
           std::string start1_name_;
@@ -208,61 +194,42 @@ namespace viennacl{
           std::string stride2_name_;
           std::string shift2_name_;
 
-
-
-          void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const{
-              stream << name_;
-              stream << '[' ;
-              stream << index;
-              stream << ']';
+          void offset(std::string const & index, utils::kernel_generation_stream & stream) const {
+            stream << index;
+//              if(is_rowmajor_){
+//                return '(' + offset_i + ')' + '*' + size2_ + "+ (" + offset_j + ')';
+//              }
+//              return '(' + offset_i + ')' + "+ (" + offset_j + ')' + '*' + internal_size1();
+//            }
           }
 
         public:
-          mapped_matrix(std::string const & scalartype) : mapped_container(scalartype){ }
-
-          void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
-            std::string new_access_name = name_ + "_private";
-            if(fetched.find(name_)==fetched.end()){
-              stream << scalartype_ << " " << new_access_name << " = ";
-              generate(index, stream);
-              stream << ';' << std::endl;
-              fetched.insert(name_);
-            }
-            access_name_ = new_access_name;
-          }
-
-          void write_back(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream){
-            std::string old_access_name = access_name_;
-            access_name_.clear();
-            if(fetched.find(name_)!=fetched.end()){
-              generate(index, stream);
-              stream << " = " << old_access_name << ';' << std::endl;
-              fetched.erase(name_);
-            }
-          }
+          mapped_matrix(std::string const & scalartype) : mapped_handle(scalartype){ }
       };
 
+      /** @brief Mapping of a symbolic vector to a generator class */
       class mapped_symbolic_vector : public mapped_container{
           friend class prototype_generation_traversal;
           std::string value_name_;
           std::string index_name_;
           bool is_value_static_;
-          void generate_impl(std::string const & index, utils::kernel_generation_stream & stream) const{
-            stream << value_name_;
-          }
         public:
           mapped_symbolic_vector(std::string const & scalartype) : mapped_container(scalartype){ }
+          void generate(std::string const & index, utils::kernel_generation_stream & stream) const{
+            stream << value_name_;
+          }
       };
 
+      /** @brief Mapping of a symbolic matrix to a generator class */
       class mapped_symbolic_matrix : public mapped_container{
           friend class prototype_generation_traversal;
           std::string value_name_;
           bool is_diag_;
-          void generate_impl(utils::kernel_generation_stream & stream) const{
-            stream << value_name_;
-          }
         public:
           mapped_symbolic_matrix(std::string const & scalartype) : mapped_container(scalartype){ }
+          void generate(std::string const & index, utils::kernel_generation_stream & stream) const{
+            stream << value_name_;
+          }
       };
 
       void generate(std::string const & index, utils::kernel_generation_stream & stream, mapped_container const & s){
@@ -388,14 +355,14 @@ namespace viennacl{
           }
 
           template<class ScalarType>
-          void host_scalar_prototype(mapping_type::key_type const & key) const {
+          void host_scalar_prototype(mapping_type::key_type const & key, ScalarType * scal) const {
             mapped_host_scalar * p = new mapped_host_scalar(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
-            p->name_ = prototype_value_generation(p->scalartype_, (void *)p);
+            p->name_ = prototype_value_generation(p->scalartype_, (void *)scal);
           }
 
           template<class ScalarType>
-          void vector_prototype(std::size_t index, leaf_type lhs_rhs, statement_node const & node, statement::container_type const * array, mapping_type::key_type const & key, void * element) const {
+          void vector_prototype(std::size_t index, leaf_type lhs_rhs, statement_node const & node, statement::container_type const * array, mapping_type::key_type const & key, vector_base<ScalarType> * vec) const {
             mapped_vector * p = new mapped_vector(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
             if(array){
@@ -404,55 +371,51 @@ namespace viennacl{
               p->access_.array_ = array;
               p->access_.mapping_ = &mapping_;
             }
-            p->name_ = prototype_pointer_generation(p->scalartype_, element);
+            p->name_ = prototype_pointer_generation(p->scalartype_, (void*)vec);
 
-            vector_base<ScalarType> * vec = static_cast< vector_base<ScalarType> * >(element);
             if(vec->start() > 0)
-              p->start_name_ = prototype_value_generation(p->scalartype_, element);
+              p->start_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
             if(vec->stride() > 1)
-              p->shift_name_ = prototype_value_generation(p->scalartype_, element);
+              p->shift_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
           }
 
           template<class ScalarType, class F>
-          void matrix_prototype(mapping_type::key_type const & key, void * element) const {
+          void matrix_prototype(mapping_type::key_type const & key, matrix_base<ScalarType, F> * mat) const {
             mapped_matrix * p = new mapped_matrix(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
-            p->name_ = prototype_pointer_generation(p->scalartype_, element);
+            p->name_ = prototype_pointer_generation(p->scalartype_, (void*)mat);
 
-            matrix_base<ScalarType, F> * mat = static_cast< matrix_base<ScalarType, F> * >(element);
             if(mat->start1() > 0)
-              p->start1_name_ = prototype_value_generation(p->scalartype_, element);
+              p->start1_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
             if(mat->stride1() > 1)
-              p->stride1_name_ = prototype_value_generation(p->scalartype_, element);
+              p->stride1_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
 
             if(mat->start2() > 0)
-              p->start2_name_ = prototype_value_generation(p->scalartype_, element);
+              p->start2_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
             if(mat->stride2() > 1)
-              p->stride2_name_ = prototype_value_generation(p->scalartype_, element);
+              p->stride2_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
 
           }
 
 
           template<class ScalarType>
-          void symbolic_vector_prototype(mapping_type::key_type const & key, void * element) const {
+          void symbolic_vector_prototype(mapping_type::key_type const & key, symbolic_vector_base<ScalarType> * vec) const {
             mapped_symbolic_vector * p = new mapped_symbolic_vector(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
 
-            symbolic_vector_base<ScalarType> * vec = static_cast< symbolic_vector_base<ScalarType> * >(element);
             if(!vec->is_value_static())
-              p->value_name_ = prototype_value_generation(p->scalartype_, element);
+              p->value_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
             if(vec->index().first)
-              p->index_name_ = prototype_value_generation(p->scalartype_, element);
+              p->index_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
           }
 
           template<class ScalarType>
-          void symbolic_matrix_prototype(mapping_type::key_type const & key, void * element) const {
+          void symbolic_matrix_prototype(mapping_type::key_type const & key, symbolic_matrix_base<ScalarType> * mat) const {
             mapped_symbolic_matrix * p = new mapped_symbolic_matrix(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
 
-            symbolic_matrix_base<ScalarType> * mat = static_cast< symbolic_matrix_base<ScalarType> * >(element);
             if(!mat->is_value_static())
-              p->value_name_ = prototype_value_generation(p->scalartype_, element);
+              p->value_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
             if(mat->diag())
               p->is_diag_ = true;
           }
@@ -479,37 +442,37 @@ namespace viennacl{
             switch(type_family){
               case HOST_SCALAR_TYPE_FAMILY:
                 switch(type){
-                  case HOST_SCALAR_FLOAT_TYPE : host_scalar_prototype<float>(key); break;
+                  case HOST_SCALAR_FLOAT_TYPE : host_scalar_prototype(key, &element.host_float_); break;
                   default : throw "not implemented";
                 }
                 break;
               case VECTOR_TYPE_FAMILY:
                 switch(type){
-                  case VECTOR_FLOAT_TYPE : vector_prototype<float>(index, lhs_rhs, node, array, key, element.vector_float_); break;
+                  case VECTOR_FLOAT_TYPE : vector_prototype(index, lhs_rhs, node, array, key, element.vector_float_); break;
                   default : throw "not implemented";
                 }
                 break;
               case SYMBOLIC_VECTOR_TYPE_FAMILY:
                 switch(type){
-                  case SYMBOLIC_VECTOR_FLOAT_TYPE : symbolic_vector_prototype<float>(key, element.symbolic_vector_float_); break;
+                  case SYMBOLIC_VECTOR_FLOAT_TYPE : symbolic_vector_prototype(key, element.symbolic_vector_float_); break;
                   default : throw "not implemented";
                 }
                 break;
               case MATRIX_ROW_TYPE_FAMILY:
                 switch(type){
-                  case MATRIX_ROW_FLOAT_TYPE : vector_prototype<float>(index, lhs_rhs, node, array, key, element.matrix_row_float_); break;
+                  case MATRIX_ROW_FLOAT_TYPE : matrix_prototype(key, element.matrix_row_float_); break;
                   default : throw "not implemented";
                 }
                 break;
               case MATRIX_COL_TYPE_FAMILY:
                 switch(type){
-                  case MATRIX_COL_FLOAT_TYPE : vector_prototype<float>(index, lhs_rhs, node, array, key, element.matrix_col_float_); break;
+                  case MATRIX_COL_FLOAT_TYPE : matrix_prototype(key, element.matrix_col_float_); break;
                   default : throw "not implemented";
                 }
                 break;
               case SYMBOLIC_MATRIX_TYPE_FAMILY:
                 switch(type){
-                  case SYMBOLIC_MATRIX_FLOAT_TYPE : symbolic_vector_prototype<float>(key, element.symbolic_matrix_float_); break;
+                  case SYMBOLIC_MATRIX_FLOAT_TYPE : symbolic_matrix_prototype(key, element.symbolic_matrix_float_); break;
                   default : throw "not implemented";
                 }
                 break;              default:
