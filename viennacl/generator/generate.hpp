@@ -49,34 +49,24 @@ namespace viennacl{
 
     class code_generator{
       private:
-        typedef std::vector<scheduler::statement> statements_type;
-      private:
-        std::vector<detail::mapping_type> mapping_;
-        statements_type statements_;
-        saxpy_profile saxpy_profile_;
+        saxpy::statements_type statements_;
+        saxpy::profile saxpy_profile_;
 
       private:
-        template<class Profile>
-        void generate(Profile const & profile, utils::kernel_generation_stream & kss){
+        template<class Generator>
+        static void generate(Generator const & g, utils::kernel_generation_stream & stream){
+
           //prototype:
-          std::map<void *, std::size_t> memory;
-          kss << "__kernel void kernel_0(" << std::endl;
-          std::string prototype;
-          profile.kernel_arguments(prototype);
-          std::size_t current_arg = 0;
-          std::size_t i = 0;
-          for(typename statements_type::iterator it = statements_.begin() ; it != statements_.end() ; ++it)
-            detail::traverse(it->array(), detail::prototype_generation_traversal(memory, mapping_[i++], prototype, current_arg),false);
-          prototype.erase(prototype.size()-1); //Last comma pruned
-          kss << prototype << std::endl;
-          kss << ")" << std::endl;
+          stream << "__kernel void kernel_0(" << std::endl;
+          g.prototype(stream);
+          stream << ")" << std::endl;
 
           //core:
-          kss << "{" << std::endl;
-          kss.inc_tab();
-          generate_saxpy(profile, kss, statements_.begin(), statements_.end(), mapping_);
-          kss.dec_tab();
-          kss << "}" << std::endl;
+          stream << "{" << std::endl;
+          stream.inc_tab();
+          g.core(stream);
+          stream.dec_tab();
+          stream << "}" << std::endl;
         }
 
       public:
@@ -92,26 +82,23 @@ namespace viennacl{
         }
 
         std::string make_program_string(){
-          std::size_t size = statements_.size();
-          mapping_.resize(size);
-
-          utils::kernel_generation_stream kss;
+          utils::kernel_generation_stream stream;
 
           //Headers generation
-          kss << "#if defined(cl_khr_fp64)\n";
-          kss <<  "#  pragma OPENCL EXTENSION cl_khr_fp64: enable\n";
-          kss <<  "#elif defined(cl_amd_fp64)\n";
-          kss <<  "#  pragma OPENCL EXTENSION cl_amd_fp64: enable\n";
-          kss <<  "#endif\n";
+          stream << "#if defined(cl_khr_fp64)\n";
+          stream <<  "#  pragma OPENCL EXTENSION cl_khr_fp64: enable\n";
+          stream <<  "#elif defined(cl_amd_fp64)\n";
+          stream <<  "#  pragma OPENCL EXTENSION cl_amd_fp64: enable\n";
+          stream <<  "#endif\n";
 
-          kss << std::endl;
+          stream << std::endl;
 
           statement first_statement = statements_.front();
           switch(type_family_of(first_statement.array())){
-            case SAXPY:  generate(saxpy_profile_, kss); break;
+            case SAXPY:  generate(saxpy(saxpy_profile_, statements_), stream); break;
             default:  throw "not implemented";  break;
           }
-          return kss.str();
+          return stream.str();
         }
     };
 
