@@ -39,36 +39,11 @@ namespace viennacl{
 
   namespace generator{
 
-    static void fetch(detail::mapped_handle * c, std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream) {
-      std::string new_access_name = c->name() + "_private";
-      if(fetched.find(c->name())==fetched.end()){
-        stream << c->scalartype() << " " << new_access_name << " = ";
-        c->generate(index, stream);
-        stream << ';' << std::endl;
-        fetched.insert(c->name());
-      }
-      c->access_name(new_access_name);
-    }
-
-    static void write_back(detail::mapped_handle * c, std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream) {
-      std::string old_access_name = c->access_name();
-      c->access_name("");
-      if(fetched.find(c->name())!=fetched.end()){
-        c->generate(index, stream);
-        stream << " = " << old_access_name << ';' << std::endl;
-        fetched.erase(c->name());
-      }
-    }
-
     class vector_saxpy : public template_base{
       public:
         class profile : public template_base::profile{
           public:
             profile(unsigned int v, std::size_t gs, std::size_t ng, bool d) : template_base::profile(v), group_size_(gs), num_groups_(ng), global_decomposition_(d){ }
-            void set_local_sizes(std::size_t & x, std::size_t & y) const{
-              x = group_size_;
-              y = 1;
-            }
             void kernel_arguments(std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
             }
@@ -91,7 +66,7 @@ namespace viennacl{
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             for(detail::mapping_type::reverse_iterator it2 = it->rbegin() ; it2 != it->rend() ; ++it2)
               if(detail::mapped_handle * p = dynamic_cast<detail::mapped_handle *>(it2->second.get()))
-                fetch(p, "i", fetched, stream);
+                p->fetch( "i", fetched, stream);
 
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
@@ -102,7 +77,7 @@ namespace viennacl{
           //Writes back
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             if(detail::mapped_handle * p = dynamic_cast<detail::mapped_handle *>(it->at(std::make_pair(0,detail::LHS_LEAF_TYPE)).get()))
-              write_back(p, "i", fetched, stream);
+              p->write_back( "i", fetched, stream);
 
           stream.dec_tab();
           stream << "}" << std::endl;
@@ -162,7 +137,7 @@ namespace viennacl{
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             for(detail::mapping_type::reverse_iterator it2 = it->rbegin() ; it2 != it->rend() ; ++it2)
               if(detail::mapped_matrix * p = dynamic_cast<detail::mapped_matrix *>(it2->second.get()))
-                fetch(p,get_offset(p),fetched, stream);
+                p->fetch(get_offset(p),fetched, stream);
 
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
@@ -173,7 +148,7 @@ namespace viennacl{
           //Writes back
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             if(detail::mapped_matrix * p = dynamic_cast<detail::mapped_matrix *>(it->at(std::make_pair(0,detail::LHS_LEAF_TYPE)).get()))
-              write_back(p, get_offset(p), fetched, stream);
+              p->write_back(get_offset(p), fetched, stream);
 
           stream.dec_tab();
           stream << "}" << std::endl;

@@ -105,9 +105,9 @@ namespace viennacl{
           }
       };
 
-      struct host_scalar_descriptor{
-          std::string name_;
-      };
+
+      template<unsigned int dim>
+      class symbolic_local_memory;
 
       /** @brief Base class for mapping viennacl datastructure to generator-friendly structures
        */
@@ -147,6 +147,28 @@ namespace viennacl{
           void access_name(std::string const & str) { access_name_ = str; }
           std::string const & access_name() const { return access_name_; }
           mapped_handle(std::string const & scalartype) : mapped_container(scalartype){ }
+
+          void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream) {
+            std::string new_access_name = name_ + "_private";
+            if(fetched.find(name_)==fetched.end()){
+              stream << scalartype_ << " " << new_access_name << " = ";
+              generate(index, stream);
+              stream << ';' << std::endl;
+              fetched.insert(name_);
+            }
+            access_name_ = new_access_name;
+          }
+
+          void write_back(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream) {
+            std::string old_access_name = access_name_ ;
+            access_name_ = "";
+            if(fetched.find(name_)!=fetched.end()){
+              generate(index, stream);
+              stream << " = " << old_access_name << ';' << std::endl;
+              fetched.erase(name_);
+            }
+          }
+
           void generate(std::string const & index, utils::kernel_generation_stream & stream) const{
             if(!access_name_.empty())
               stream << access_name_;

@@ -49,6 +49,7 @@ namespace viennacl{
         case VECTOR_TYPE_FAMILY : return VECTOR_SAXPY;
         case MATRIX_ROW_TYPE_FAMILY : return MATRIX_SAXPY;
         case MATRIX_COL_TYPE_FAMILY : return MATRIX_SAXPY;
+        case SCALAR_TYPE_FAMILY : return DOT;
         default: throw "not implemented";
       }
     }
