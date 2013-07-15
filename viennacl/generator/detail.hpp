@@ -34,6 +34,8 @@
 
 #include "viennacl/generator/utils.hpp"
 
+#include "viennacl/meta/predicate.hpp"
+#include "viennacl/meta/result_of.hpp"
 namespace viennacl{
 
   namespace generator{
@@ -194,16 +196,14 @@ namespace viennacl{
           std::string stride2_name_;
           std::string shift2_name_;
 
+          bool is_row_major_;
+
           void offset(std::string const & index, utils::kernel_generation_stream & stream) const {
             stream << index;
-//              if(is_rowmajor_){
-//                return '(' + offset_i + ')' + '*' + size2_ + "+ (" + offset_j + ')';
-//              }
-//              return '(' + offset_i + ')' + "+ (" + offset_j + ')' + '*' + internal_size1();
-//            }
           }
 
         public:
+          bool is_row_major() const { return is_row_major_; }
           mapped_matrix(std::string const & scalartype) : mapped_handle(scalartype){ }
       };
 
@@ -384,6 +384,11 @@ namespace viennacl{
             mapped_matrix * p = new mapped_matrix(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
             p->name_ = prototype_pointer_generation(p->scalartype_, (void*)mat);
+
+            if(utils::is_same_type<F, viennacl::row_major>::value)
+               p->is_row_major_ = true;
+            else
+              p->is_row_major_ = false;
 
             if(mat->start1() > 0)
               p->start1_name_ = prototype_value_generation(p->scalartype_, (void*)mat);

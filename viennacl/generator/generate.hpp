@@ -37,20 +37,28 @@ namespace viennacl{
     using namespace viennacl::scheduler;
 
     enum operation_type_family{
-      SAXPY,
+      VECTOR_SAXPY,
+      MATRIX_SAXPY,
       DOT,
       GEMV,
       GEMM
     };
 
     operation_type_family type_family_of(typename statement::container_type const & expr){
-      return SAXPY;
+      switch(expr[0].lhs_type_family_){
+        case VECTOR_TYPE_FAMILY : return VECTOR_SAXPY;
+        case MATRIX_ROW_TYPE_FAMILY : return MATRIX_SAXPY;
+        case MATRIX_COL_TYPE_FAMILY : return MATRIX_SAXPY;
+        default: throw "not implemented";
+      }
     }
 
     class code_generator{
       private:
-        saxpy::statements_type statements_;
-        saxpy::profile saxpy_profile_;
+        template_base::statements_type statements_;
+        vector_saxpy::profile vector_saxpy_profile_;
+        matrix_saxpy::profile matrix_saxpy_profile_;
+
 
       private:
         template<class Generator>
@@ -70,7 +78,7 @@ namespace viennacl{
         }
 
       public:
-        code_generator() : saxpy_profile_(1,128,128,true) { }
+        code_generator() : vector_saxpy_profile_(1,128,128,true), matrix_saxpy_profile_(1,16,16,16,16,true) { }
 
         void add_statement(scheduler::statement const & s) { statements_.push_back(s); }
 
@@ -95,7 +103,8 @@ namespace viennacl{
 
           statement first_statement = statements_.front();
           switch(type_family_of(first_statement.array())){
-            case SAXPY:  generate(saxpy(statements_, saxpy_profile_), stream); break;
+            case VECTOR_SAXPY:  generate(vector_saxpy(statements_, vector_saxpy_profile_), stream); break;
+            case MATRIX_SAXPY:  generate(matrix_saxpy(statements_, matrix_saxpy_profile_), stream); break;
             default:  throw "not implemented";  break;
           }
           return stream.str();

@@ -31,6 +31,12 @@ namespace viennacl{
 
     namespace utils{
 
+      template<class T, class U>
+      struct is_same_type { enum { value = 0 }; };
+
+      template<class T>
+      struct is_same_type<T,T> { enum { value = 1 }; };
+
       template <class T>
       inline std::string to_string ( T const t )
       {
