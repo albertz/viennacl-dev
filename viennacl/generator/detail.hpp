@@ -80,22 +80,14 @@ namespace viennacl{
       class expression_generation_traversal : public traversal_functor{
         private:
           std::string index_string_;
-          utils::kernel_generation_stream & stream_;
+          std::string & str_;
           mapping_type const & mapping_;
         public:
-          expression_generation_traversal(std::string const & index, utils::kernel_generation_stream & stream, mapping_type const & mapping) : index_string_(index), stream_(stream), mapping_(mapping){ }
-          void call_on_leaf(index_info const & key, statement_node const & node,  statement::container_type const * array) const {
-            stream_ << generate(index_string_,*mapping_.at(key));
-          }
-          void call_on_op(operation_node_type_family, operation_node_type type) const {
-            stream_ << detail::generate(type);
-          }
-          void call_before_expansion() const {
-            stream_ << '(';
-          }
-          void call_after_expansion() const {
-            stream_ << ')';
-          }
+          expression_generation_traversal(std::string const & index, std::string & str, mapping_type const & mapping) : index_string_(index), str_(str), mapping_(mapping){ }
+          void call_on_leaf(index_info const & key, statement_node const & node,  statement::container_type const * array) const { str_ += generate(index_string_,*mapping_.at(key)); }
+          void call_on_op(operation_node_type_family, operation_node_type type) const { str_ += detail::generate(type); }
+          void call_before_expansion() const { str_ += '('; }
+          void call_after_expansion() const { str_ += ')';  }
       };
 
 
@@ -104,13 +96,13 @@ namespace viennacl{
       class mapped_container{
         protected:
           struct node_info{
+              node_info() : mapping_(NULL), array_(NULL) { }
+              mapping_type const * mapping_;
               statement::container_type const * array_;
               index_info index_;
           };
-
         protected:
           std::string scalartype_;
-
         public:
           mapped_container(std::string const & scalartype) : scalartype_(scalartype){ }
           std::string const & scalartype() { return scalartype_; }
@@ -182,6 +174,12 @@ namespace viennacl{
           std::string shift_name_;
 
           std::string offset(std::string const & index) const {
+            if(access_node_.array_){
+              std::string str;
+              detail::traverse(*access_node_.array_, detail::expression_generation_traversal(index, str, *access_node_.mapping_), true, access_node_.index_);
+              return str;
+            }
+            else
               return index;
           }
 
@@ -300,6 +298,7 @@ namespace viennacl{
             fun.call_after_expansion();
           }
           if(element.op_family_==OPERATION_BINARY_TYPE_FAMILY){
+            if(shallow_traversal && element.op_type_==OPERATION_BINARY_ACCESS) return;
             fun.call_before_expansion();
             traverse(array, fun, shallow_traversal, get_new_key(element.lhs_type_family_, index, element.lhs_.node_index_, LHS_NODE_TYPE));
             fun.call_on_op(element.op_family_, element.op_type_);
@@ -425,7 +424,7 @@ namespace viennacl{
             statement_node_type type;
             statement_node_type_family type_family;
             lhs_rhs_element element;
-            if(key.second==LHS_NODE_TYPE){
+            if(key.second==LHS_NODE_TYPE || node.op_type_==OPERATION_BINARY_ACCESS){
               type = node.lhs_type_;
               type_family = node.lhs_type_family_;
               element = node.lhs_;
@@ -454,6 +453,7 @@ namespace viennacl{
                 if(node.op_type_==OPERATION_BINARY_ACCESS){
                   v->access_node_.array_ = array;
                   v->access_node_.index_ = get_new_key(node.rhs_type_family_, key.first, node.rhs_.node_index_, RHS_NODE_TYPE);
+                  v->access_node_.mapping_ = &mapping_;
                 }
                 break;
               }
