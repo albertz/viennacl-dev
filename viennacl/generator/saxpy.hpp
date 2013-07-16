@@ -44,6 +44,10 @@ namespace viennacl{
         class profile : public template_base::profile{
           public:
             profile(unsigned int v, std::size_t gs, std::size_t ng, bool d) : template_base::profile(v), group_size_(gs), num_groups_(ng), global_decomposition_(d){ }
+            void set_local_sizes(std::size_t & size1, std::size_t & size2) const{
+              size1 = group_size_;
+              size2 = 1;
+            }
             void kernel_arguments(std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
             }
@@ -76,7 +80,7 @@ namespace viennacl{
 
           //Writes back
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
-            if(detail::mapped_handle * p = dynamic_cast<detail::mapped_handle *>(it->at(std::make_pair(0,detail::LHS_LEAF_TYPE)).get()))
+            if(detail::mapped_handle * p = dynamic_cast<detail::mapped_handle *>(it->at(std::make_pair(0,detail::LHS_NODE_TYPE)).get()))
               p->write_back( "i", fetched, stream);
 
           stream.dec_tab();
@@ -147,7 +151,7 @@ namespace viennacl{
 
           //Writes back
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
-            if(detail::mapped_matrix * p = dynamic_cast<detail::mapped_matrix *>(it->at(std::make_pair(0,detail::LHS_LEAF_TYPE)).get()))
+            if(detail::mapped_matrix * p = dynamic_cast<detail::mapped_matrix *>(it->at(std::make_pair(0,detail::LHS_NODE_TYPE)).get()))
               p->write_back(get_offset(p), fetched, stream);
 
           stream.dec_tab();

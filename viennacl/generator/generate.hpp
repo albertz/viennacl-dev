@@ -84,10 +84,7 @@ namespace viennacl{
         void add_statement(scheduler::statement const & s) { statements_.push_back(s); }
 
         std::string make_program_name(){
-          std::string res;
-          for(std::vector<scheduler::statement>::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it)
-            detail::traverse(it->array(), detail::name_generation_traversal(res));
-          return res;
+          return "";
         }
 
         std::string make_program_string(){

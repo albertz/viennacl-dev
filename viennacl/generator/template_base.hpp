@@ -52,9 +52,10 @@ namespace viennacl{
             profile(unsigned int vectorization) : vectorization_(vectorization){ }
 
             virtual void kernel_arguments(std::string & arguments_string) const = 0;
+            virtual void set_local_sizes(std::size_t & size1, std::size_t & size2) const = 0;
+
             /** @brief returns whether or not the profile leads to undefined behavior on particular device
          *  @param dev the given device*/
-
             bool is_invalid(viennacl::ocl::device const & dev, size_t scalartype_size) const{
               //Query profile informations
               std::size_t size1, size2;
@@ -90,7 +91,7 @@ namespace viennacl{
           std::size_t current_arg = 0;
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it)
-            detail::traverse(it->array(), detail::prototype_generation_traversal(memory, mapping_[i++], prototype, current_arg),false);
+            detail::traverse(it->array(), detail::map_generate_prototype(memory, mapping_[i++], prototype, current_arg),false);
           prototype.erase(prototype.size()-1); //Last comma pruned
           stream << prototype << std::endl;
         }
