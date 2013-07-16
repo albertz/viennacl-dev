@@ -105,10 +105,6 @@ namespace viennacl{
           }
       };
 
-
-      template<unsigned int dim>
-      class symbolic_local_memory;
-
       /** @brief Base class for mapping viennacl datastructure to generator-friendly structures
        */
       class mapped_container{
@@ -180,6 +176,7 @@ namespace viennacl{
             }
           }
       };
+
 
       /** @brief Mapping of a vector to a generator class */
       class mapped_vector : public mapped_handle{
