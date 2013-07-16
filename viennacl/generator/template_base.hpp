@@ -91,7 +91,7 @@ namespace viennacl{
           std::size_t current_arg = 0;
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it)
-            detail::traverse(it->array(), detail::map_generate_prototype(memory, mapping_[i++], prototype, current_arg),false);
+            detail::traverse(it->array(), detail::map_generate_prototype(memory, mapping_[i++], prototype, current_arg),true);
           prototype.erase(prototype.size()-1); //Last comma pruned
           stream << prototype << std::endl;
         }

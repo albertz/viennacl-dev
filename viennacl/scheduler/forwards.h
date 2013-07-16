@@ -35,8 +35,7 @@ namespace viennacl
     {
       // unary or binary expression
       OPERATION_UNARY_TYPE_FAMILY,
-      OPERATION_BINARY_TYPE_FAMILY,
-      OPERATION_REDUCE_TYPE_FAMILY
+      OPERATION_BINARY_TYPE_FAMILY
     };
 
     /** @brief Enumeration for identifying the possible operations */

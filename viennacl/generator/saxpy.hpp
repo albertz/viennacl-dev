@@ -75,7 +75,7 @@ namespace viennacl{
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
               std::string str;
-              detail::traverse(it->array(), detail::expression_generation_traversal("", str, mapping_[i++]), true);
+              detail::traverse(it->array(), detail::expression_generation_traversal("", str, mapping_[i++]), false);
               stream << str << std::endl;
           }
 
@@ -147,7 +147,7 @@ namespace viennacl{
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             std::string str;
-            detail::traverse(it->array(), detail::expression_generation_traversal("", str, mapping_[i++]), true);
+            detail::traverse(it->array(), detail::expression_generation_traversal("", str, mapping_[i++]), false);
             stream << str << std::endl;
           }
 

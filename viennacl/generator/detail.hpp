@@ -55,7 +55,7 @@ namespace viennacl{
 
 
       template<class TraversalFunctor>
-      void traverse(statement::container_type const & array, TraversalFunctor const & fun, bool shallow_traversal = false, index_info const & key = std::make_pair(0, PARENT_TYPE));
+      void traverse(statement::container_type const & array, TraversalFunctor const & fun, bool deep_traversal, index_info const & key = std::make_pair(0, PARENT_TYPE));
       std::string generate(std::string const & index, mapped_container const & s);
       const char * generate(operation_node_type arg);
       const char * generate(statement_node_type arg);
@@ -286,7 +286,7 @@ namespace viennacl{
 
 
       template<class TraversalFunctor>
-      void traverse(statement::container_type const & array, TraversalFunctor const & fun, bool shallow_traversal, index_info const & key){
+      void traverse(statement::container_type const & array, TraversalFunctor const & fun, bool deep_traversal, index_info const & key){
         std::size_t index = key.first;
         std::size_t node_tag = key.second;
         statement::value_type const & element = array[index];
@@ -294,22 +294,27 @@ namespace viennacl{
           if(element.op_family_==OPERATION_UNARY_TYPE_FAMILY){
             fun.call_on_op(element.op_family_, element.op_type_);
             fun.call_before_expansion();
-            traverse(array, fun, shallow_traversal, get_new_key(element.lhs_type_family_, index, element.lhs_.node_index_, LHS_NODE_TYPE));
+            traverse(array, fun, deep_traversal, get_new_key(element.lhs_type_family_, index, element.lhs_.node_index_, LHS_NODE_TYPE));
             fun.call_after_expansion();
           }
           if(element.op_family_==OPERATION_BINARY_TYPE_FAMILY){
-            if(shallow_traversal && element.op_type_==OPERATION_BINARY_ACCESS) return;
             fun.call_before_expansion();
-            traverse(array, fun, shallow_traversal, get_new_key(element.lhs_type_family_, index, element.lhs_.node_index_, LHS_NODE_TYPE));
-            fun.call_on_op(element.op_family_, element.op_type_);
-            traverse(array, fun, shallow_traversal, get_new_key(element.rhs_type_family_, index, element.rhs_.node_index_, RHS_NODE_TYPE));
-            fun.call_after_expansion();
+            if(element.op_type_==OPERATION_BINARY_ACCESS){
+              fun.call_on_leaf(std::make_pair(index, LHS_NODE_TYPE), element, &array);
+              if(deep_traversal)
+                traverse(array, fun, deep_traversal, get_new_key(element.rhs_type_family_, index, element.rhs_.node_index_, RHS_NODE_TYPE));
+            }
+            else{
+              traverse(array, fun, deep_traversal, get_new_key(element.lhs_type_family_, index, element.lhs_.node_index_, LHS_NODE_TYPE));
+              fun.call_on_op(element.op_family_, element.op_type_);
+              traverse(array, fun, deep_traversal, get_new_key(element.rhs_type_family_, index, element.rhs_.node_index_, RHS_NODE_TYPE));
+              fun.call_after_expansion();
+            }
           }
         }
-        else{
-          fun.call_on_leaf(key, element, &array);
-        }
-      }
+       else
+        fun.call_on_leaf(key, element, &array);
+    }
 
 //      class name_generation_traversal : public traversal_functor{
 //          std::string & str_;
@@ -424,7 +429,7 @@ namespace viennacl{
             statement_node_type type;
             statement_node_type_family type_family;
             lhs_rhs_element element;
-            if(key.second==LHS_NODE_TYPE || node.op_type_==OPERATION_BINARY_ACCESS){
+            if(key.second==LHS_NODE_TYPE){
               type = node.lhs_type_;
               type_family = node.lhs_type_family_;
               element = node.lhs_;
@@ -450,7 +455,7 @@ namespace viennacl{
                   case VECTOR_FLOAT_TYPE : v = vector_prototype(key, element.vector_float_);  break;
                   default : throw "not implemented";
                 }
-                if(node.op_type_==OPERATION_BINARY_ACCESS){
+                if(node.op_type_==OPERATION_BINARY_ACCESS && key.second==LHS_NODE_TYPE){
                   v->access_node_.array_ = array;
                   v->access_node_.index_ = get_new_key(node.rhs_type_family_, key.first, node.rhs_.node_index_, RHS_NODE_TYPE);
                   v->access_node_.mapping_ = &mapping_;
