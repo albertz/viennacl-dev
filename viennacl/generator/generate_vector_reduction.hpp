@@ -31,7 +31,7 @@
 #include "viennacl/generator/detail.hpp"
 #include "viennacl/generator/utils.hpp"
 
-#include "viennacl/generator/template_base.hpp"
+#include "viennacl/generator/generate_template_base.hpp"
 
 #include "viennacl/tools/tools.hpp"
 
@@ -53,12 +53,14 @@ namespace viennacl{
           public:
             /** @brief The user constructor */
             profile(unsigned int vectorization, unsigned int m, unsigned int k, unsigned int num_groups) : template_base::profile(vectorization), m_(m), k_(k), num_groups_(num_groups){ }
-
+            void set_local_sizes(std::size_t& s1, std::size_t& s2) const{
+              s1 = m_;
+              s2 = k_;
+            }
             void kernel_arguments(std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
             }
-
           private:
             unsigned int m_;
             unsigned int k_;
@@ -66,7 +68,7 @@ namespace viennacl{
         };
 
       public:
-        vector_reduction( const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
+        vector_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
 
         void core(utils::kernel_generation_stream& stream) const{
 
@@ -75,7 +77,7 @@ namespace viennacl{
       private:
         profile profile_;
     };
-
+  }
 }
 
 #endif

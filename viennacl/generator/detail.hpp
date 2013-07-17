@@ -126,12 +126,14 @@ namespace viennacl{
           mapped_binary_leaf(std::string const & scalartype) : mapped_container(scalartype){ }
           node_info lhs() const { return lhs_; }
           node_info rhs() const { return rhs_; }
-        private:
+          std::string generate_default(std::string const & index) const { }
+        protected:
           node_info lhs_;
           node_info rhs_;
       };
 
       class mapped_matrix_product : public mapped_binary_leaf{
+          friend class map_generate_prototype;
         public:
           mapped_matrix_product(std::string const & scalartype) : mapped_binary_leaf(scalartype){ }
       };
@@ -145,11 +147,13 @@ namespace viennacl{
       };
 
       class mapped_scalar_reduction : public mapped_reduction{
+          friend class map_generate_prototype;
         public:
           mapped_scalar_reduction(std::string const & scalartype) : mapped_reduction(scalartype){ }
       };
 
       class mapped_vector_reduction : public mapped_reduction{
+          friend class map_generate_prototype;
         public:
           mapped_vector_reduction(std::string const & scalartype) : mapped_reduction(scalartype){ }
       };
@@ -313,25 +317,33 @@ namespace viennacl{
         std::size_t index = key.first;
         std::size_t node_tag = key.second;
         statement::value_type const & element = array[index];
+        operation_node_type op_type = element.op_type_;
+        operation_node_type_family op_family = element.op_family_;
         if(node_tag == PARENT_TYPE){
-          if(element.op_family_==OPERATION_UNARY_TYPE_FAMILY){
-            fun.call_on_op(element.op_family_, element.op_type_);
+          if(op_family==OPERATION_UNARY_TYPE_FAMILY){
+            fun.call_on_op(op_family, op_type);
             fun.call_before_expansion();
             traverse(array, fun, deep_traversal, get_new_key(element.lhs_type_family_, index, element.lhs_.node_index_, LHS_NODE_TYPE));
             fun.call_after_expansion();
           }
-          if(element.op_family_==OPERATION_BINARY_TYPE_FAMILY){
+          if(op_family==OPERATION_BINARY_TYPE_FAMILY){
             fun.call_before_expansion();
-            if(element.op_type_==OPERATION_BINARY_ACCESS){
-              fun.call_on_leaf(std::make_pair(index, LHS_NODE_TYPE), element, &array);
+            if(op_type==OPERATION_BINARY_ACCESS){
+              fun.call_on_leaf(key, element, &array);
               if(deep_traversal)
                 traverse(array, fun, deep_traversal, get_new_key(element.rhs_type_family_, index, element.rhs_.node_index_, RHS_NODE_TYPE));
             }
             else{
-              traverse(array, fun, deep_traversal, get_new_key(element.lhs_type_family_, index, element.lhs_.node_index_, LHS_NODE_TYPE));
-              fun.call_on_op(element.op_family_, element.op_type_);
-              traverse(array, fun, deep_traversal, get_new_key(element.rhs_type_family_, index, element.rhs_.node_index_, RHS_NODE_TYPE));
-              fun.call_after_expansion();
+              bool is_binary_leaf = op_type==OPERATION_BINARY_PROD_TYPE;
+              bool recurse = !is_binary_leaf || (is_binary_leaf && deep_traversal);
+              if(is_binary_leaf)
+                fun.call_on_leaf(key, element, &array);
+              if(recurse){
+                traverse(array, fun, deep_traversal, get_new_key(element.lhs_type_family_, index, element.lhs_.node_index_, LHS_NODE_TYPE));
+                fun.call_on_op(op_family, op_type);
+                traverse(array, fun, deep_traversal, get_new_key(element.rhs_type_family_, index, element.rhs_.node_index_, RHS_NODE_TYPE));
+                fun.call_after_expansion();
+              }
             }
           }
         }
@@ -382,15 +394,14 @@ namespace viennacl{
           }
 
           template<class ScalarType>
-          mapped_host_scalar * host_scalar_prototype(index_info const & key, ScalarType * scal) const {
+          void host_scalar_prototype(index_info const & key, ScalarType * scal) const {
             mapped_host_scalar * p = new mapped_host_scalar(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
             p->name_ = prototype_value_generation(p->scalartype_, (void *)scal);
-            return p;
           }
 
           template<class ScalarType>
-          mapped_vector * vector_prototype(index_info const & key, vector_base<ScalarType> * vec) const {
+          void vector_prototype(index_info const & key, vector_base<ScalarType> * vec) const {
             mapped_vector * p = new mapped_vector(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
             p->name_ = prototype_pointer_generation(p->scalartype_, (void*)vec);
@@ -398,11 +409,10 @@ namespace viennacl{
               p->start_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
             if(vec->stride() > 1)
               p->shift_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
-            return p;
           }
 
           template<class ScalarType, class F>
-          mapped_matrix * matrix_prototype(index_info const & key, matrix_base<ScalarType, F> * mat) const {
+          void matrix_prototype(index_info const & key, matrix_base<ScalarType, F> * mat) const {
             mapped_matrix * p = new mapped_matrix(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
             p->name_ = prototype_pointer_generation(p->scalartype_, (void*)mat);
@@ -418,30 +428,39 @@ namespace viennacl{
               p->start2_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
             if(mat->stride2() > 1)
               p->stride2_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
-            return p;
           }
 
 
           template<class ScalarType>
-          mapped_symbolic_vector * symbolic_vector_prototype(index_info const & key, symbolic_vector_base<ScalarType> * vec) const {
+          void symbolic_vector_prototype(index_info const & key, symbolic_vector_base<ScalarType> * vec) const {
             mapped_symbolic_vector * p = new mapped_symbolic_vector(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
             if(!vec->is_value_static())
               p->value_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
             if(vec->index().first)
               p->index_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
-            return p;
           }
 
           template<class ScalarType>
-          mapped_symbolic_matrix * symbolic_matrix_prototype(index_info const & key, symbolic_matrix_base<ScalarType> * mat) const {
+          void symbolic_matrix_prototype(index_info const & key, symbolic_matrix_base<ScalarType> * mat) const {
             mapped_symbolic_matrix * p = new mapped_symbolic_matrix(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
             if(!mat->is_value_static())
               p->value_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
             if(mat->diag())
               p->is_diag_ = true;
-            return p;
+          }
+
+          void vector_reduction_prototype(index_info const & key, statement_node const & node,  statement::container_type const * array) const{
+            mapped_vector_reduction * p = new mapped_vector_reduction("float");
+            mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
+            p->lhs_.array_ = array;
+            p->lhs_.index_ = get_new_key(node.lhs_type_family_, key.first, node.lhs_.node_index_, LHS_NODE_TYPE);
+            p->lhs_.mapping_ = &mapping_;
+
+            p->rhs_.array_ = array;
+            p->rhs_.index_ = get_new_key(node.rhs_type_family_, key.first, node.rhs_.node_index_, RHS_NODE_TYPE);
+            p->rhs_.mapping_ = &mapping_;
           }
 
         public:
@@ -449,77 +468,90 @@ namespace viennacl{
           map_generate_prototype(std::map<void*, std::size_t> & memory, mapping_type & mapping, std::string & str, std::size_t & current_arg) : memory_(memory), mapping_(mapping), str_(str), current_arg_(current_arg) { }
 
           void call_on_leaf(index_info const & key, statement_node const & node,  statement::container_type const * array) const {
-            statement_node_type type;
-            statement_node_type_family type_family;
-            lhs_rhs_element element;
-            if(key.second==LHS_NODE_TYPE){
-              type = node.lhs_type_;
-              type_family = node.lhs_type_family_;
-              element = node.lhs_;
-            }
-            else{
-              type = node.rhs_type_;
-              type_family = node.rhs_type_family_;
-              element = node.rhs_;
-            }
-            switch(type_family){
-              case HOST_SCALAR_TYPE_FAMILY:
-              {
-                switch(type){
-                  case HOST_SCALAR_FLOAT_TYPE : host_scalar_prototype(key, &element.host_float_); break;
-                  default : throw "not implemented";
-                }
-                break;
-              }
-              case VECTOR_TYPE_FAMILY:
-              {
-                mapped_vector * v = NULL;
-                switch(type){
-                  case VECTOR_FLOAT_TYPE : v = vector_prototype(key, element.vector_float_);  break;
-                  default : throw "not implemented";
-                }
-                if(node.op_type_==OPERATION_BINARY_ACCESS && key.second==LHS_NODE_TYPE){
+            if(key.second==PARENT_TYPE){
+              switch(node.op_type_){
+                case OPERATION_BINARY_ACCESS:
+                {
+                  index_info new_key = std::make_pair(key.first,LHS_NODE_TYPE);
+                  call_on_leaf(new_key, node, array);
+                  mapped_vector * v = static_cast<mapped_vector *>(mapping_.at(new_key).get());
                   v->access_node_.array_ = array;
                   v->access_node_.index_ = get_new_key(node.rhs_type_family_, key.first, node.rhs_.node_index_, RHS_NODE_TYPE);
                   v->access_node_.mapping_ = &mapping_;
+                  break;
                 }
-                break;
+                case OPERATION_BINARY_PROD_TYPE:
+                  vector_reduction_prototype(key, node, array);
+                  break;
               }
-              case SYMBOLIC_VECTOR_TYPE_FAMILY:
-              {
-                switch(type){
-                  case SYMBOLIC_VECTOR_FLOAT_TYPE : symbolic_vector_prototype(key, element.symbolic_vector_float_); break;
-                  default : throw "not implemented";
-                }
-                break;
-              }
-              case MATRIX_ROW_TYPE_FAMILY:
-              {
-                switch(type){
-                  case MATRIX_ROW_FLOAT_TYPE : matrix_prototype(key, element.matrix_row_float_); break;
-                  default : throw "not implemented";
-                }
-                break;
-              }
-              case MATRIX_COL_TYPE_FAMILY:
-              {
-                switch(type){
-                  case MATRIX_COL_FLOAT_TYPE : matrix_prototype(key, element.matrix_col_float_); break;
-                  default : throw "not implemented";
-                }
-                break;
-              }
-              case SYMBOLIC_MATRIX_TYPE_FAMILY:
-              {
-                switch(type){
-                  case SYMBOLIC_MATRIX_FLOAT_TYPE : symbolic_matrix_prototype(key, element.symbolic_matrix_float_); break;
-                  default : throw "not implemented";
-                }
-                break;
-              }
-              default : throw "not implemented";
             }
-          }
+            else{
+              statement_node_type type;
+              statement_node_type_family type_family;
+              lhs_rhs_element element;
+              if(key.second==LHS_NODE_TYPE){
+                type = node.lhs_type_;
+                type_family = node.lhs_type_family_;
+                element = node.lhs_;
+              }
+              else{
+                type = node.rhs_type_;
+                type_family = node.rhs_type_family_;
+                element = node.rhs_;
+              }
+              switch(type_family){
+                case HOST_SCALAR_TYPE_FAMILY:
+                {
+                  switch(type){
+                    case HOST_SCALAR_FLOAT_TYPE : host_scalar_prototype(key, &element.host_float_); break;
+                    default : throw "not implemented";
+                  }
+                  break;
+                }
+                case VECTOR_TYPE_FAMILY:
+                {
+                  switch(type){
+                    case VECTOR_FLOAT_TYPE : vector_prototype(key, element.vector_float_);  break;
+                    default : throw "not implemented";
+                  }
+                  break;
+                }
+                case SYMBOLIC_VECTOR_TYPE_FAMILY:
+                {
+                  switch(type){
+                    case SYMBOLIC_VECTOR_FLOAT_TYPE : symbolic_vector_prototype(key, element.symbolic_vector_float_); break;
+                    default : throw "not implemented";
+                  }
+                  break;
+                }
+                case MATRIX_ROW_TYPE_FAMILY:
+                {
+                  switch(type){
+                    case MATRIX_ROW_FLOAT_TYPE : matrix_prototype(key, element.matrix_row_float_); break;
+                    default : throw "not implemented";
+                  }
+                  break;
+                }
+                case MATRIX_COL_TYPE_FAMILY:
+                {
+                  switch(type){
+                    case MATRIX_COL_FLOAT_TYPE : matrix_prototype(key, element.matrix_col_float_); break;
+                    default : throw "not implemented";
+                  }
+                  break;
+                }
+                case SYMBOLIC_MATRIX_TYPE_FAMILY:
+                {
+                  switch(type){
+                    case SYMBOLIC_MATRIX_FLOAT_TYPE : symbolic_matrix_prototype(key, element.symbolic_matrix_float_); break;
+                    default : throw "not implemented";
+                  }
+                  break;
+                }
+                default : throw "not implemented";
+              }
+           }
+        }
 
       };
 

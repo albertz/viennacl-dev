@@ -31,7 +31,7 @@
 #include "viennacl/generator/detail.hpp"
 #include "viennacl/generator/utils.hpp"
 
-#include "viennacl/generator/template_base.hpp"
+#include "viennacl/generator/generate_template_base.hpp"
 
 #include "viennacl/tools/tools.hpp"
 

@@ -1,5 +1,5 @@
-#ifndef VIENNACL_GENERATOR_CODE_PROFILE_BASE
-#define VIENNACL_GENERATOR_CODE_PROFILE_BASE
+#ifndef VIENNACL_GENERATOR_GENERATE_TEMPLATE_BASE_BASE
+#define VIENNACL_GENERATOR_GENERATE_TEMPLATE_BASE_BASE
 
 /* =========================================================================
    Copyright (c) 2010-2013, Institute for Microelectronics,
@@ -19,9 +19,9 @@
 ============================================================================= */
 
 
-/** @file viennacl/generator/templates/profile_base.hpp
+/** @file viennacl/generator/templates/tgenerate_template_base.hpp
  *
- * Base classes for the profile
+ * Base classes for the templates
 */
 
 #include <list>

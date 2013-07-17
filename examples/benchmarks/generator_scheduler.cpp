@@ -31,6 +31,7 @@
 #include "viennacl/vector.hpp"
 #include "viennacl/matrix.hpp"
 #include "viennacl/linalg/inner_prod.hpp"
+#include "viennacl/linalg/prod.hpp"
 #include "viennacl/linalg/norm_2.hpp"
 #include "viennacl/scheduler/execute.hpp"
 #include "viennacl/generator/generate.hpp"
@@ -60,6 +61,7 @@ int run_benchmark()
   std::vector<ScalarType> std_vec1(BENCHMARK_VECTOR_SIZE);
   std::vector<ScalarType> std_vec2(BENCHMARK_VECTOR_SIZE);
   std::vector<ScalarType> std_vec3(BENCHMARK_VECTOR_SIZE);
+  viennacl::scalar<ScalarType> vcl_scal1(0);
   viennacl::vector<ScalarType> vcl_vec1(BENCHMARK_VECTOR_SIZE);
   viennacl::vector<ScalarType> vcl_vec2(BENCHMARK_VECTOR_SIZE);
   viennacl::vector<ScalarType> vcl_vec3(BENCHMARK_VECTOR_SIZE);
@@ -87,7 +89,7 @@ int run_benchmark()
 
   viennacl::generator::code_generator generator;
 //  generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), viennacl::linalg::element_abs(vcl_vec1) + vcl_vec3));
-  generator.add_statement(viennacl::scheduler::statement(vcl_vec2, viennacl::op_assign(), vcl_vec1(vcl_vec3)));
+  generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat1, vcl_vec2)));
   std::cout << generator.make_program_string() << std::endl;
 
   return 0;

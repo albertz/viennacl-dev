@@ -1,5 +1,5 @@
-#ifndef VIENNACL_GENERATOR_GENERATE_SAXPY_VECTOR_HPP
-#define VIENNACL_GENERATOR_GENERATE_SAXPY_VECTOR_HPP
+#ifndef VIENNACL_GENERATOR_GENERATE_SAXPY_HPP
+#define VIENNACL_GENERATOR_GENERATE_SAXPY_HPP
 
 /* =========================================================================
    Copyright (c) 2010-2013, Institute for Microelectronics,
@@ -31,7 +31,7 @@
 #include "viennacl/generator/detail.hpp"
 #include "viennacl/generator/utils.hpp"
 
-#include "viennacl/generator/template_base.hpp"
+#include "viennacl/generator/generate_template_base.hpp"
 
 #include "viennacl/tools/tools.hpp"
 
