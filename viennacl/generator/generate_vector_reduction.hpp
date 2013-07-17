@@ -70,7 +70,7 @@ namespace viennacl{
       public:
         vector_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
 
-        void core(utils::kernel_generation_stream& stream) const{
+        void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const{
 
           std::size_t lsize1 = profile_.m_;
           std::size_t lsize2 = profile_.k_+1;

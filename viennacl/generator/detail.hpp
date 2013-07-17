@@ -197,6 +197,16 @@ namespace viennacl{
           std::string name_;
       };
 
+      /** @brief Base class for scalar */
+      class mapped_scalar : public mapped_handle{
+          friend class map_generate_prototype;
+        private:
+          std::string offset(std::string const & index)  const { return "0"; }
+        public:
+          mapped_scalar(std::string const & scalartype) : mapped_handle(scalartype){ }
+      };
+
+
       /** @brief Mapping of a vector to a generator class */
       class mapped_vector : public mapped_handle{
           friend class map_generate_prototype;
@@ -285,6 +295,12 @@ namespace viennacl{
         switch(type){
           case COMPOSITE_OPERATION_TYPE : return "";
 
+          //host_scalar
+          case HOST_SCALAR_FLOAT_TYPE : return "hsf";
+
+          //scalar:
+          case SCALAR_FLOAT_TYPE : return "dsf";
+
           //vector:
           case VECTOR_FLOAT_TYPE : return "vf";
 
@@ -333,7 +349,8 @@ namespace viennacl{
                 traverse(array, fun, deep_traversal, get_new_key(element.rhs_type_family_, index, element.rhs_.node_index_, RHS_NODE_TYPE));
             }
             else{
-              bool is_binary_leaf = op_type==OPERATION_BINARY_PROD_TYPE;
+              bool is_binary_leaf = (op_type==OPERATION_BINARY_PROD_TYPE)
+                                  ||(op_type==OPERATION_BINARY_INNER_PROD_TYPE);
               bool recurse = !is_binary_leaf || (is_binary_leaf && deep_traversal);
               if(is_binary_leaf)
                 fun.call_on_leaf(key, element, &array);
@@ -401,6 +418,13 @@ namespace viennacl{
           }
 
           template<class ScalarType>
+          void scalar_prototype(index_info const & key, scalar<ScalarType> * scal) const{
+            mapped_scalar * p = new mapped_scalar(utils::type_to_string<ScalarType>::value());
+            mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
+            p->name_ = prototype_pointer_generation(p->scalartype_, (void*)scal);
+          }
+
+          template<class ScalarType>
           void vector_prototype(index_info const & key, vector_base<ScalarType> * vec) const {
             mapped_vector * p = new mapped_vector(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
@@ -451,8 +475,22 @@ namespace viennacl{
               p->is_diag_ = true;
           }
 
+
           void vector_reduction_prototype(index_info const & key, statement_node const & node,  statement::container_type const * array) const{
             mapped_vector_reduction * p = new mapped_vector_reduction("float");
+            mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
+            p->lhs_.array_ = array;
+            p->lhs_.index_ = get_new_key(node.lhs_type_family_, key.first, node.lhs_.node_index_, LHS_NODE_TYPE);
+            p->lhs_.mapping_ = &mapping_;
+//            p->is_lhs_transposed_ = array->at(node.lhs_.node_index_).op_type_ == scheduler::OPERATION_UNARY_TRANS_TYPE;
+
+            p->rhs_.array_ = array;
+            p->rhs_.index_ = get_new_key(node.rhs_type_family_, key.first, node.rhs_.node_index_, RHS_NODE_TYPE);
+            p->rhs_.mapping_ = &mapping_;
+          }
+
+          void scalar_reduction_prototype(index_info const & key, statement_node const & node,  statement::container_type const * array) const{
+            mapped_scalar_reduction * p = new mapped_scalar_reduction("float");
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
             p->lhs_.array_ = array;
             p->lhs_.index_ = get_new_key(node.lhs_type_family_, key.first, node.lhs_.node_index_, LHS_NODE_TYPE);
@@ -481,6 +519,9 @@ namespace viennacl{
                   v->access_node_.mapping_ = &mapping_;
                   break;
                 }
+                case OPERATION_BINARY_INNER_PROD_TYPE:
+                  scalar_reduction_prototype(key, node, array);
+                  break;
                 case OPERATION_BINARY_PROD_TYPE:
                   vector_reduction_prototype(key, node, array);
                   break;
@@ -507,6 +548,14 @@ namespace viennacl{
                 {
                   switch(type){
                     case HOST_SCALAR_FLOAT_TYPE : host_scalar_prototype(key, &element.host_float_); break;
+                    default : throw "not implemented";
+                  }
+                  break;
+                }
+                case SCALAR_TYPE_FAMILY:
+                {
+                  switch(type){
+                    case SCALAR_FLOAT_TYPE : scalar_prototype(key, element.scalar_float_); break;
                     default : throw "not implemented";
                   }
                   break;

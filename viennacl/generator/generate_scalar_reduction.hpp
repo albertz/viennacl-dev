@@ -67,10 +67,9 @@ namespace viennacl{
 
 
 
-      public:
-        scalar_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
+      private:
 
-        void core_1(utils::kernel_generation_stream& stream) const {
+        void core_0(utils::kernel_generation_stream& stream) const {
 
           std::vector<detail::mapped_scalar_reduction*> exprs;
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
@@ -80,7 +79,7 @@ namespace viennacl{
           std::string scalartype = exprs.front()->scalartype();
 
           for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-              stream << scalartype << " sum" << k << " = 0;" ;
+              stream << scalartype << " sum" << k << " = 0;" << std::endl;
 
 
 
@@ -138,7 +137,7 @@ namespace viennacl{
         }
 
 
-        void core_2(utils::kernel_generation_stream& stream) const {
+        void core_1(utils::kernel_generation_stream& stream) const {
 //          for(std::size_t i = 0 ; i < inner_products_index.size() ; ++i){
 //            for(std::size_t j = 0 ; j < inner_products_index[i].size() ; ++j){
 //              stream << "__local " << scalartype << " local" << i << j << "[" << profile.group_size_ << "];" << std::endl;
@@ -147,6 +146,19 @@ namespace viennacl{
 //          }
           stream << "barrier(CLK_LOCAL_MEM_FENCE);" << std::endl;
 //        if(lid==0) " << (*it)->generate(0) << ";" << std::endl;
+        }
+
+      public:
+        scalar_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
+
+        void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const {
+          assert(kernel_id<1 && bool("Core not implemented"));
+          if(kernel_id==0){
+            core_0(stream);
+          }
+          else{
+            core_1(stream);
+          }
         }
 
       private:

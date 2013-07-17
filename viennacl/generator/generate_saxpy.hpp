@@ -60,7 +60,7 @@ namespace viennacl{
       public:
         vector_saxpy(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
 
-        void core(utils::kernel_generation_stream& stream) const {
+        void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const {
           stream << "for(unsigned int i = get_global_id(0) ; i < N ; i += get_global_size(0))" << std::endl;
           stream << "{" << std::endl;
           stream.inc_tab();
@@ -128,7 +128,7 @@ namespace viennacl{
       public:
         matrix_saxpy(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
 
-        void core(utils::kernel_generation_stream& stream) const {
+        void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const {
           stream << "for(unsigned int i = get_global_id(0) ; i < M ; i += get_global_size(0))" << std::endl;
           stream << "{" << std::endl;
           stream.inc_tab();

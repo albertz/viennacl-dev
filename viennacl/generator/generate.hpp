@@ -82,12 +82,13 @@ namespace viennacl{
         generator::template_base::statements_type statements_;
         vector_saxpy::profile vector_saxpy_profile_;
         matrix_saxpy::profile matrix_saxpy_profile_;
+        scalar_reduction::profile scalar_reduction_profile_;
         vector_reduction::profile vector_reduction_profile_;
 
 
       private:
         template<class Generator>
-        static void generate(Generator const & g, utils::kernel_generation_stream & stream){
+        static void generate(Generator const & g, utils::kernel_generation_stream & stream, std::size_t kernel_id = 0){
 
           //prototype:
           stream << "__kernel void kernel_0(" << std::endl;
@@ -97,13 +98,13 @@ namespace viennacl{
           //core:
           stream << "{" << std::endl;
           stream.inc_tab();
-          g.core(stream);
+          g.core(kernel_id, stream);
           stream.dec_tab();
           stream << "}" << std::endl;
         }
 
       public:
-        code_generator() : vector_saxpy_profile_(1,128,128,true), matrix_saxpy_profile_(1,16,16,16,16,true), vector_reduction_profile_(1, 1, 256, 32) { }
+        code_generator() : vector_saxpy_profile_(1,128,128,true), matrix_saxpy_profile_(1,16,16,16,16,true), vector_reduction_profile_(1, 1, 256, 32), scalar_reduction_profile_(1, 128, 128, true) { }
 
         void add_statement(scheduler::statement const & s) { statements_.push_back(s); }
 
@@ -125,9 +126,19 @@ namespace viennacl{
 
           statement first_statement = statements_.front();
           switch(type_family_of(first_statement.array())){
-            case VECTOR_SAXPY:  generate(vector_saxpy(statements_, vector_saxpy_profile_), stream); break;
-            case MATRIX_SAXPY:  generate(matrix_saxpy(statements_, matrix_saxpy_profile_), stream); break;
-            case VECTOR_REDUCE: generate(vector_reduction(statements_, vector_reduction_profile_), stream); break;
+            case VECTOR_SAXPY:
+              generate(vector_saxpy(statements_, vector_saxpy_profile_), stream);
+              break;
+            case MATRIX_SAXPY:
+              generate(matrix_saxpy(statements_, matrix_saxpy_profile_), stream);
+              break;
+            case SCALAR_REDUCE:
+              generate(scalar_reduction(statements_, scalar_reduction_profile_), stream, 0);
+              generate(scalar_reduction(statements_, scalar_reduction_profile_), stream, 1);
+              break;
+            case VECTOR_REDUCE:
+              generate(vector_reduction(statements_, vector_reduction_profile_), stream);
+              break;
             default:  throw "not implemented";  break;
           }
           return stream.str();
