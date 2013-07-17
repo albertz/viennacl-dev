@@ -49,8 +49,10 @@ namespace viennacl{
         PARENT_TYPE,
         RHS_NODE_TYPE
       };
-      typedef std::pair<std::size_t, node_type> index_info;
+
       class mapped_container;
+
+      typedef std::pair<std::size_t, node_type> index_info;
       typedef std::map< index_info, tools::shared_ptr<detail::mapped_container> > mapping_type;
 
 

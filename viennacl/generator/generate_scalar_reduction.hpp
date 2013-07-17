@@ -46,11 +46,9 @@ namespace viennacl{
 
         class profile : public template_base::profile{
             friend class scalar_reduction;
-
             std::size_t lmem_used(std::size_t scalartype_size) const {
               return group_size_*scalartype_size;
             }
-
           public:
             /** @brief The user constructor */
             profile(unsigned int vectorization, unsigned int group_size, unsigned int num_groups, bool global_decomposition) : template_base::profile(vectorization), group_size_(group_size), num_groups_(num_groups), global_decomposition_(global_decomposition){ }
@@ -58,7 +56,6 @@ namespace viennacl{
             void kernel_arguments(std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
             }
-
           private:
             unsigned int group_size_;
             unsigned int num_groups_;
@@ -95,13 +92,12 @@ namespace viennacl{
           }
           kss.inc_tab();
 
-          //Fetch
+          //Fetch vector entry
           std::set<std::string>  fetched;
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             for(detail::mapping_type::reverse_iterator it2 = it->rbegin() ; it2 != it->rend() ; ++it2)
               if(detail::mapped_handle * p = dynamic_cast<detail::mapped_handle *>(it2->second.get()))
                 p->fetch( "i", fetched, stream);
-
 
           //Update sums;
           for(std::size_t i = 0 ; i < inner_products_index.size() ; ++i)
@@ -111,7 +107,6 @@ namespace viennacl{
 
           kss.dec_tab();
           kss << "}" << std::endl;
-
           //Declare and fill local memory
           for(std::size_t i = 0 ; i < inner_products_index.size() ; ++i){
             for(std::size_t j = 0 ; j < inner_products_index[i].size() ; ++j){
@@ -119,7 +114,6 @@ namespace viennacl{
               kss << "local" << i << j << "[lid] = sum" << i << j << std::endl;
             }
           }
-
           //Reduce local memory
           for(unsigned int stride = profile.group_size_/2 ; stride>0 ; stride /=2){
             kss << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
@@ -129,13 +123,14 @@ namespace viennacl{
               }
             }
           }
-
+          //Fetches to temporary buffer
           for(std::size_t i = 0 ; i < inner_products_index.size() ; ++i){
             for(std::size_t j = 0 ; j < inner_products_index[i].size() ; ++j){
               kss << "if(lid==0) local" << i << j << "[get_group_id(0)] = local" << i << j << "[0];" << std::endl;
             }
           }
         }
+
 
         void scalar_reduction_2(utils::kernel_generation_stream& stream) const {
           for(std::size_t i = 0 ; i < inner_products_index.size() ; ++i){
