@@ -126,7 +126,7 @@ namespace viennacl{
           mapped_binary_leaf(std::string const & scalartype) : mapped_container(scalartype){ }
           node_info lhs() const { return lhs_; }
           node_info rhs() const { return rhs_; }
-          std::string generate_default(std::string const & index) const { }
+          std::string generate_default(std::string const & index) const { return "";}
         protected:
           node_info lhs_;
           node_info rhs_;
@@ -327,7 +327,6 @@ namespace viennacl{
             fun.call_after_expansion();
           }
           if(op_family==OPERATION_BINARY_TYPE_FAMILY){
-            fun.call_before_expansion();
             if(op_type==OPERATION_BINARY_ACCESS){
               fun.call_on_leaf(key, element, &array);
               if(deep_traversal)
@@ -339,6 +338,7 @@ namespace viennacl{
               if(is_binary_leaf)
                 fun.call_on_leaf(key, element, &array);
               if(recurse){
+                fun.call_before_expansion();
                 traverse(array, fun, deep_traversal, get_new_key(element.lhs_type_family_, index, element.lhs_.node_index_, LHS_NODE_TYPE));
                 fun.call_on_op(op_family, op_type);
                 traverse(array, fun, deep_traversal, get_new_key(element.rhs_type_family_, index, element.rhs_.node_index_, RHS_NODE_TYPE));
@@ -457,6 +457,7 @@ namespace viennacl{
             p->lhs_.array_ = array;
             p->lhs_.index_ = get_new_key(node.lhs_type_family_, key.first, node.lhs_.node_index_, LHS_NODE_TYPE);
             p->lhs_.mapping_ = &mapping_;
+//            p->is_lhs_transposed_ = array->at(node.lhs_.node_index_).op_type_ == scheduler::OPERATION_UNARY_TRANS_TYPE;
 
             p->rhs_.array_ = array;
             p->rhs_.index_ = get_new_key(node.rhs_type_family_, key.first, node.rhs_.node_index_, RHS_NODE_TYPE);
@@ -483,6 +484,8 @@ namespace viennacl{
                 case OPERATION_BINARY_PROD_TYPE:
                   vector_reduction_prototype(key, node, array);
                   break;
+                default :
+                  throw "not handled";
               }
             }
             else{

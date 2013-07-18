@@ -58,7 +58,7 @@ namespace viennacl{
               kgenstream(std::ostringstream& oss,unsigned int const & tab_count) : oss_(oss), tab_count_(tab_count){ }
               int sync() {
                 for(unsigned int i=0 ; i<tab_count_;++i)
-                  oss_ << '\t';
+                  oss_ << "  ";
                 oss_ << str();
                 str("");
                 return !oss_;
