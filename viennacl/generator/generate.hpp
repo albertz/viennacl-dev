@@ -27,6 +27,7 @@
 #include "viennacl/scheduler/forwards.h"
 
 #include "viennacl/generator/generate_saxpy.hpp"
+#include "viennacl/generator/generate_scalar_reduction.hpp"
 #include "viennacl/generator/generate_vector_reduction.hpp"
 
 namespace viennacl{
@@ -68,9 +69,9 @@ namespace viennacl{
           else
             return MATRIX_SAXPY;
         case SCALAR_TYPE_FAMILY :
-//          if(count(expr, OPERATION_BINARY_INNER_PROD_TYPE))
-//            return SCALAR_REDUCE;
-//          else
+          if(count(expr, OPERATION_BINARY_INNER_PROD_TYPE))
+            return SCALAR_REDUCE;
+          else
             return SCALAR_SAXPY;
         default: throw "not implemented";
       }
