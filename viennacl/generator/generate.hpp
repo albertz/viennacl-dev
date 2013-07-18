@@ -26,6 +26,8 @@
 #include <vector>
 #include "viennacl/scheduler/forwards.h"
 
+#include "viennacl/generator/map_generate_prototype.hpp"
+
 #include "viennacl/generator/generate_saxpy.hpp"
 #include "viennacl/generator/generate_scalar_reduction.hpp"
 #include "viennacl/generator/generate_vector_reduction.hpp"
