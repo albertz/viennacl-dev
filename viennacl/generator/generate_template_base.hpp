@@ -32,7 +32,7 @@
 
 #include "viennacl/scheduler/forwards.h"
 
-#include "viennacl/generator/detail.hpp"
+#include "viennacl/generator/generate_utils.hpp"
 
 namespace viennacl{
 
@@ -51,7 +51,7 @@ namespace viennacl{
           public:
             profile(unsigned int vectorization) : vectorization_(vectorization){ }
 
-            virtual void kernel_arguments(std::string & arguments_string) const = 0;
+            virtual void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const = 0;
             virtual void set_local_sizes(std::size_t & size1, std::size_t & size2) const = 0;
 
             /** @brief returns whether or not the profile leads to undefined behavior on particular device
@@ -87,7 +87,7 @@ namespace viennacl{
         void prototype(utils::kernel_generation_stream & stream) const {
           std::map<void *, std::size_t> memory;
           std::string prototype;
-          profile_.kernel_arguments(prototype);
+          profile_.kernel_arguments(statements_, prototype);
           std::size_t current_arg = 0;
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it)

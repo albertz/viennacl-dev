@@ -30,6 +30,7 @@
 #include "viennacl/forwards.h"
 #include "viennacl/scheduler/forwards.h"
 
+#include "viennacl/generator/utils.hpp"
 #include "viennacl/generator/forwards.h"
 
 namespace viennacl{
@@ -77,6 +78,18 @@ namespace viennacl{
           void call_after_expansion() const { str_ += ')';  }
       };
 
+      class fetch_traversal : public traversal_functor{
+        private:
+          std::set<std::string> & fetched_;
+          std::string index_string_;
+          utils::kernel_generation_stream & stream_;
+          mapping_type const & mapping_;
+        public:
+          fetch_traversal(std::set<std::string> & fetched, std::string const & index, utils::kernel_generation_stream & stream, mapping_type const & mapping) : fetched_(fetched), index_string_(index), stream_(stream), mapping_(mapping){ }
+          void call_on_leaf(index_info const & key, statement_node const & node,  statement::container_type const * array) const {
+            fetch(index_string_, fetched_, stream_, *mapping_.at(key));
+          }
+      };
 
       index_info get_new_key(statement_node_type_family type_family, std::size_t current_index, std::size_t next_index, node_type node_tag){
         if(type_family==COMPOSITE_OPERATION_FAMILY)

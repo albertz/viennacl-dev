@@ -28,7 +28,7 @@
 
 #include "viennacl/scheduler/forwards.h"
 
-#include "viennacl/generator/detail.hpp"
+#include "viennacl/generator/generate_utils.hpp"
 #include "viennacl/generator/utils.hpp"
 
 #include "viennacl/generator/generate_template_base.hpp"
@@ -57,7 +57,7 @@ namespace viennacl{
               s1 = m_;
               s2 = k_;
             }
-            void kernel_arguments(std::string & arguments_string) const{
+            void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
             }
@@ -71,16 +71,17 @@ namespace viennacl{
         vector_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
 
         void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const{
-
-          std::size_t lsize1 = profile_.m_;
-          std::size_t lsize2 = profile_.k_+1;
-          bool is_lhs_transposed = false;
-
           std::vector<detail::mapped_vector_reduction*> exprs;
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             for(detail::mapping_type::iterator iit = it->begin() ; iit != it->end() ; ++iit)
               if(detail::mapped_vector_reduction * p = dynamic_cast<detail::mapped_vector_reduction*>(iit->second.get()))
                 exprs.push_back(p);
+
+          std::size_t lsize1 = profile_.m_;
+          std::size_t lsize2 = profile_.k_+1;
+          std::string scalartype = "float";
+          bool is_lhs_transposed = exprs.front()->lhs().array_->at(exprs.front()->lhs().index_.first).op_type_==scheduler::OPERATION_UNARY_TRANS_TYPE;
+
 
           detail::mapped_vector_reduction* first_expr = exprs.front();
           for(std::vector<detail::mapped_vector_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
@@ -97,19 +98,34 @@ namespace viennacl{
             stream << "for(unsigned int r = get_global_id(0) ; r < M ; r += get_global_size(0)){" << std::endl;
           stream.inc_tab();
 
-          stream << first_expr->scalartype() << " sum = 0;" << std::endl;
+          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
+            stream << scalartype << " sum" << k << " = 0;" << std::endl;
+
           if(is_lhs_transposed)
             stream << "for(unsigned int c = get_local_id(1) ; c < M ; c += get_local_size(1)){" << std::endl;
           else
             stream << "for(unsigned int c = get_local_id(1) ; c < N ; c += get_local_size(1)){" << std::endl;
           stream.inc_tab();
 
-          std::string expr_str;
-          detail::traverse(*first_expr->lhs().array_, detail::expression_generation_traversal("r*N+c", expr_str, *first_expr->lhs().mapping_), false, first_expr->lhs().index_);
-          expr_str += "*";
-          detail::traverse(*first_expr->rhs().array_, detail::expression_generation_traversal("c", expr_str, *first_expr->rhs().mapping_), false, first_expr->rhs().index_);
+          std::set<std::string>  fetched;
 
-          stream << "sum = sum" << "+" << '(' << expr_str << ");" << std::endl;
+          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
+            detail::traverse(*exprs[k]->lhs().array_, detail::fetch_traversal(fetched, "r*N+c", stream, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
+
+          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
+            detail::traverse(*exprs[k]->rhs().array_, detail::fetch_traversal(fetched, "c", stream, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
+
+
+          //Update sums;
+          for(std::size_t k = 0 ; k < exprs.size() ; ++k){
+            std::string expr_str;
+            detail::traverse(*exprs[k]->lhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
+            expr_str += "*";
+            detail::traverse(*exprs[k]->rhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
+            stream << scalartype << " sum" << k << " += "  << expr_str << ";" << std::endl;
+          }
+
+
           stream.dec_tab();
           stream << "}" << std::endl;
 

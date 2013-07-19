@@ -51,6 +51,7 @@ namespace viennacl{
       unsigned int res = 0;
       for(typename statement::container_type::const_iterator it = expr.begin() ; it != expr.end() ; ++it)
         res += static_cast<unsigned int>(it->op_type_==op_type);
+      return res;
     }
 
     operation_type_family type_family_of(typename statement::container_type const & expr){
@@ -75,7 +76,8 @@ namespace viennacl{
             return SCALAR_REDUCE;
           else
             return SCALAR_SAXPY;
-        default: throw "not implemented";
+        default:
+          throw "not implemented";
       }
     }
 
@@ -93,7 +95,7 @@ namespace viennacl{
         static void generate(Generator const & g, utils::kernel_generation_stream & stream, std::size_t kernel_id = 0){
 
           //prototype:
-          stream << "__kernel void kernel_0(" << std::endl;
+          stream << "__kernel void kernel_" << kernel_id << "(" << std::endl;
           g.prototype(stream);
           stream << ")" << std::endl;
 
@@ -106,7 +108,11 @@ namespace viennacl{
         }
 
       public:
-        code_generator() : vector_saxpy_profile_(1,128,128,true), matrix_saxpy_profile_(1,16,16,16,16,true), vector_reduction_profile_(1, 1, 256, 32), scalar_reduction_profile_(1, 128, 128, true) { }
+        code_generator() : vector_saxpy_profile_(1,128,128,true)
+                          , matrix_saxpy_profile_(1,16,16,16,16,true)
+                          , scalar_reduction_profile_(1, 128, 128, true)
+                          , vector_reduction_profile_(1, 1, 256, 32)
+                           { }
 
         void add_statement(scheduler::statement const & s) { statements_.push_back(s); }
 

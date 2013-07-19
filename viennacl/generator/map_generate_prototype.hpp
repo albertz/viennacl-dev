@@ -31,7 +31,7 @@
 
 #include "viennacl/tools/shared_ptr.hpp"
 
-#include "viennacl/generator/detail.hpp"
+#include "viennacl/generator/generate_utils.hpp"
 #include "viennacl/generator/utils.hpp"
 #include "viennacl/generator/mapped_types.hpp"
 

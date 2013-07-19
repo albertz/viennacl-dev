@@ -28,7 +28,7 @@
 
 #include "viennacl/scheduler/forwards.h"
 
-#include "viennacl/generator/detail.hpp"
+#include "viennacl/generator/generate_utils.hpp"
 #include "viennacl/generator/utils.hpp"
 
 #include "viennacl/generator/generate_template_base.hpp"
@@ -48,7 +48,7 @@ namespace viennacl{
               size1 = group_size_;
               size2 = 1;
             }
-            void kernel_arguments(std::string & arguments_string) const{
+            void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
             }
           private:
@@ -103,7 +103,7 @@ namespace viennacl{
               x = group_size1_;
               y = group_size2_;
             }
-            void kernel_arguments(std::string & arguments_string) const{
+            void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
             }

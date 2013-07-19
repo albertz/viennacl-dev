@@ -219,6 +219,11 @@ namespace viennacl{
         return s.generate(index);
       }
 
+      void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream, mapped_container & s){
+        if(mapped_handle * p = dynamic_cast<mapped_handle  *>(&s))
+          p->fetch(index, fetched, stream);
+      }
+
     }
 
   }
