@@ -119,6 +119,8 @@ namespace viennacl{
         public:
           mapped_handle(std::string const & scalartype) : mapped_container(scalartype){ }
 
+          std::string const & name() { return name_; }
+
           void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream) {
             std::string new_access_name = name_ + "_private";
             if(fetched.find(name_)==fetched.end()){
@@ -179,6 +181,18 @@ namespace viennacl{
           }
         public:
           bool is_row_major() const { return is_row_major_; }
+          std::string offset(std::string const & i, std::string const & j, std::string const & size1, std::string const & size2) const{
+            if(is_row_major_)
+              if(j=="0")
+                return '(' + i + ')' + '*' + size2;
+              else
+                return '(' + i + ')' + '*' + size2 + "+ (" + j + ')';
+            else
+              if(i=="0")
+                return  "(" + j + ')' + '*' + size1;
+              else
+                return  '(' + i + ')' + "+ (" + j + ')' + '*' + size1;
+          }
           mapped_matrix(std::string const & scalartype) : mapped_handle(scalartype){ }
         private:
           std::string start1_name_;
