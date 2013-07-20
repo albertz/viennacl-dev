@@ -112,7 +112,6 @@ namespace viennacl{
               p->stride2_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
           }
 
-
           template<class ScalarType>
           void symbolic_vector_prototype(index_info const & key, symbolic_vector_base<ScalarType> * vec) const {
             mapped_symbolic_vector * p = new mapped_symbolic_vector(utils::type_to_string<ScalarType>::value());

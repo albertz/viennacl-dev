@@ -49,7 +49,7 @@ namespace viennacl{
           virtual std::string generate_default(std::string const & index) const = 0;
         public:
           mapped_container(std::string const & scalartype) : scalartype_(scalartype){ }
-          std::string const & scalartype() { return scalartype_; }
+          std::string const & scalartype() const { return scalartype_; }
           void access_name(std::string const & str) { access_name_ = str; }
           std::string const & access_name() const { return access_name_; }
           virtual std::string generate(std::string const & index) const{
@@ -119,7 +119,7 @@ namespace viennacl{
         public:
           mapped_handle(std::string const & scalartype) : mapped_container(scalartype){ }
 
-          std::string const & name() { return name_; }
+          std::string const & name() const { return name_; }
 
           void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream) {
             std::string new_access_name = name_ + "_private";
@@ -181,20 +181,26 @@ namespace viennacl{
           }
         public:
           bool is_row_major() const { return is_row_major_; }
-          std::string offset(std::string const & i, std::string const & j, std::string const & size1, std::string const & size2) const{
+          bool is_transposed() const { return is_transposed_; }
+          std::string const & size1() const { return size1_; }
+          std::string const & size2() const { return size2_; }
+          std::string offset(std::string const & i, std::string const & j) const{
             if(is_row_major_)
               if(j=="0")
-                return '(' + i + ')' + '*' + size2;
+                return '(' + i + ')' + '*' + size2_;
               else
-                return '(' + i + ')' + '*' + size2 + "+ (" + j + ')';
+                return '(' + i + ')' + '*' + size2_ + "+ (" + j + ')';
             else
               if(i=="0")
-                return  "(" + j + ')' + '*' + size1;
+                return  "(" + j + ')' + '*' + size1_;
               else
-                return  '(' + i + ')' + "+ (" + j + ')' + '*' + size1;
+                return  '(' + i + ')' + "+ (" + j + ')' + '*' + size1_;
           }
           mapped_matrix(std::string const & scalartype) : mapped_handle(scalartype){ }
         private:
+          std::string size1_;
+          std::string size2_;
+
           std::string start1_name_;
           std::string stride1_name_;
           std::string shift1_name_;
@@ -202,6 +208,7 @@ namespace viennacl{
           std::string stride2_name_;
           std::string shift2_name_;
           bool is_row_major_;
+          bool is_transposed_;
       };
 
       /** @brief Mapping of a symbolic vector to a generator class */

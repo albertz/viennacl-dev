@@ -71,6 +71,7 @@ namespace viennacl{
         vector_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
 
         void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const{
+
           std::vector<detail::mapped_vector_reduction*> exprs;
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             for(detail::mapping_type::iterator iit = it->begin() ; iit != it->end() ; ++iit)

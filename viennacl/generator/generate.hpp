@@ -31,6 +31,7 @@
 #include "viennacl/generator/generate_saxpy.hpp"
 #include "viennacl/generator/generate_scalar_reduction.hpp"
 #include "viennacl/generator/generate_vector_reduction.hpp"
+#include "viennacl/generator/generate_matrix_product.hpp"
 
 namespace viennacl{
 
