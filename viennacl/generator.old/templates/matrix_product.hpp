@@ -422,12 +422,16 @@ namespace viennacl{
               bool is_rhs_transposed = is_transposed(&first_prod->rhs());
 
               std::string lhs_value_scalartype;
-              if(use_LHS_shared) lhs_value_scalartype = first_lhs->scalartype();
-              else lhs_value_scalartype = first_lhs->aligned_scalartype();
+              if(use_LHS_shared)
+                lhs_value_scalartype = first_lhs->scalartype();
+              else
+                lhs_value_scalartype = first_lhs->aligned_scalartype();
 
               std::string rhs_value_scalartype;
-              if(use_RHS_shared) rhs_value_scalartype = first_rhs->scalartype();
-              else rhs_value_scalartype = first_rhs->aligned_scalartype();
+              if(use_RHS_shared)
+                rhs_value_scalartype = first_rhs->scalartype();
+              else
+                rhs_value_scalartype = first_rhs->aligned_scalartype();
 
               unsigned int ml_res = ml, nl_res = nl, ms_res = ms, ns_res = ns;
               unsigned int ml_lhs = ml, kl_lhs = kl, ms_lhs = ms, ks_lhs = ks;
@@ -528,7 +532,8 @@ namespace viennacl{
               }
 
 
-              if(unroll > 1) kss << "#pragma unroll " << unroll << std::endl;
+              if(unroll > 1)
+                kss << "#pragma unroll " << unroll << std::endl;
               kss << " for(unsigned int bs=0 ; bs < " << kl/ks  << " ; ++bs){" << std::endl;
               kss.inc_tab();
 
