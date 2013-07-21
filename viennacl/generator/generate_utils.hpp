@@ -120,8 +120,9 @@ namespace viennacl{
                 traverse(array, fun, deep_traversal, get_new_key(element.rhs_type_family_, index, element.rhs_.node_index_, RHS_NODE_TYPE));
             }
             else{
-              bool is_binary_leaf = (op_type==OPERATION_BINARY_PROD_TYPE)
-                  ||(op_type==OPERATION_BINARY_INNER_PROD_TYPE);
+              bool is_binary_leaf = (op_type==OPERATION_BINARY_INNER_PROD_TYPE)
+                                  ||(op_type==OPERATION_BINARY_MAT_VEC_PROD_TYPE)
+                                  ||(op_type==OPERATION_BINARY_MAT_MAT_PROD_TYPE);
               bool recurse = !is_binary_leaf || (is_binary_leaf && deep_traversal);
               if(is_binary_leaf)
                 fun.call_on_leaf(key, element, &array);

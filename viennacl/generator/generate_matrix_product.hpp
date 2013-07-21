@@ -273,7 +273,7 @@ namespace viennacl{
       public:
         matrix_product(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
 
-        void core(utils::kernel_generation_stream& stream) const{
+        void core(std::size_t idx, utils::kernel_generation_stream& stream) const{
 
           bool use_LHS_shared = profile_.use_LHS_shared_;
           bool use_RHS_shared = profile_.use_RHS_shared_;
@@ -515,6 +515,7 @@ namespace viennacl{
                   stream << "val_rhs_" << ind_rhs_1 << "_" << ind_rhs_2;
                   if(!is_vectorized_rhs && !use_RHS_shared && vectorization>1) rhs_oss << ".s" << ind_s_rhs;
 
+                  stream << std::endl;
 
 
                   if(is_vectorized)
@@ -584,9 +585,6 @@ namespace viennacl{
                 stream << "offsetRHS += " << kl_rhs << ";" << std::endl;
             }
           }
-
-          stream.dec_tab();
-          stream << "}" << std::endl;
 
           if(assigned->is_row_major()){
             for(unsigned int m=0 ; m < ms_res ; ++m){

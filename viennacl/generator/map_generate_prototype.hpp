@@ -146,6 +146,19 @@ namespace viennacl{
             p->rhs_.mapping_ = &mapping_;
           }
 
+          void matrix_product_prototype(index_info const & key, statement_node const & node,  statement::container_type const * array) const{
+            mapped_matrix_product * p = new mapped_matrix_product("float");
+            mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
+            p->lhs_.array_ = array;
+            p->lhs_.index_ = get_new_key(node.lhs_type_family_, key.first, node.lhs_.node_index_, LHS_NODE_TYPE);
+            p->lhs_.mapping_ = &mapping_;
+//            p->is_lhs_transposed_ = array->at(node.lhs_.node_index_).op_type_ == scheduler::OPERATION_UNARY_TRANS_TYPE;
+
+            p->rhs_.array_ = array;
+            p->rhs_.index_ = get_new_key(node.rhs_type_family_, key.first, node.rhs_.node_index_, RHS_NODE_TYPE);
+            p->rhs_.mapping_ = &mapping_;
+          }
+
           void scalar_reduction_prototype(index_info const & key, statement_node const & node,  statement::container_type const * array) const{
             mapped_scalar_reduction * p = new mapped_scalar_reduction("float");
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
@@ -179,8 +192,11 @@ namespace viennacl{
                 case OPERATION_BINARY_INNER_PROD_TYPE:
                   scalar_reduction_prototype(key, node, array);
                   break;
-                case OPERATION_BINARY_PROD_TYPE:
+                case OPERATION_BINARY_MAT_VEC_PROD_TYPE:
                   vector_reduction_prototype(key, node, array);
+                  break;
+                case OPERATION_BINARY_MAT_MAT_PROD_TYPE:
+                  matrix_product_prototype(key, node, array);
                   break;
                 default :
                   throw "not handled";

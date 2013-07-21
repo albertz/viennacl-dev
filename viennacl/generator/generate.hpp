@@ -58,17 +58,17 @@ namespace viennacl{
     operation_type_family type_family_of(typename statement::container_type const & expr){
       switch(expr[0].lhs_type_family_){
         case VECTOR_TYPE_FAMILY :
-          if(count(expr, OPERATION_BINARY_PROD_TYPE))
+          if(count(expr, OPERATION_BINARY_MAT_VEC_PROD_TYPE))
             return VECTOR_REDUCE;
           else
             return VECTOR_SAXPY;
         case MATRIX_ROW_TYPE_FAMILY :
-          if(count(expr, OPERATION_BINARY_PROD_TYPE))
+          if(count(expr, OPERATION_BINARY_MAT_MAT_PROD_TYPE))
             return MATRIX_PRODUCT;
           else
             return MATRIX_SAXPY;
         case MATRIX_COL_TYPE_FAMILY :
-          if(count(expr, OPERATION_BINARY_PROD_TYPE))
+          if(count(expr, OPERATION_BINARY_MAT_MAT_PROD_TYPE))
             return MATRIX_PRODUCT;
           else
             return MATRIX_SAXPY;
@@ -89,6 +89,7 @@ namespace viennacl{
         matrix_saxpy::profile matrix_saxpy_profile_;
         scalar_reduction::profile scalar_reduction_profile_;
         vector_reduction::profile vector_reduction_profile_;
+        matrix_product::profile matrix_product_profile_;
 
 
       private:
@@ -113,6 +114,7 @@ namespace viennacl{
                           , matrix_saxpy_profile_(1,16,16,16,16,true)
                           , scalar_reduction_profile_(1, 128, 128, true)
                           , vector_reduction_profile_(1, 1, 256, 32)
+                          , matrix_product_profile_(1,32,32,32,4,4,4,true,false,1)
                            { }
 
         void add_statement(scheduler::statement const & s) { statements_.push_back(s); }
@@ -147,6 +149,9 @@ namespace viennacl{
               break;
             case VECTOR_REDUCE:
               generate(vector_reduction(statements_, vector_reduction_profile_), stream);
+              break;
+            case MATRIX_PRODUCT:
+              generate(matrix_product(statements_,matrix_product_profile_), stream);
               break;
             default:  throw "not implemented";  break;
           }
