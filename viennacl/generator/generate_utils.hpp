@@ -53,8 +53,33 @@ namespace viennacl{
           case OPERATION_UNARY_ABS_TYPE : return "abs";
           case OPERATION_BINARY_ASSIGN_TYPE : return "=";
           case OPERATION_BINARY_ADD_TYPE : return "+";
-          case OPERATION_BINARY_ACCESS : return "";
+          case OPERATION_BINARY_INNER_PROD_TYPE : return "iprod";
+          case OPERATION_BINARY_MAT_MAT_PROD_TYPE : return "prod";
+          case OPERATION_BINARY_MAT_VEC_PROD_TYPE : return "prod";
+          case OPERATION_BINARY_ACCESS : return "acc";
           default : throw "not implemented";
+        }
+      }
+
+      const char * generate_scalartype(statement_node_type type){
+        switch(type){
+          case VECTOR_FLOAT_TYPE :
+          case MATRIX_ROW_FLOAT_TYPE :
+          case MATRIX_COL_FLOAT_TYPE:
+          case HOST_SCALAR_FLOAT_TYPE:
+          case SCALAR_FLOAT_TYPE:
+            return "f";
+
+          case VECTOR_DOUBLE_TYPE :
+          case MATRIX_ROW_DOUBLE_TYPE :
+          case MATRIX_COL_DOUBLE_TYPE:
+          case HOST_SCALAR_DOUBLE_TYPE:
+          case SCALAR_DOUBLE_TYPE:
+            return "d";
+
+          default:
+            throw "not implemented";
+
         }
       }
 

@@ -24,8 +24,9 @@
 */
 
 #include <cstring>
-
 #include <vector>
+#include <typeinfo>
+
 #include "viennacl/scheduler/forwards.h"
 
 #include "viennacl/generator/map_generate_prototype.hpp"
@@ -141,20 +142,66 @@ namespace viennacl{
           }
         }
 
-        void make_program_name(char * ptr) const{
+        struct vec_repr{
+            typedef const char * result_type;
+            template<class ScalarType>
+            result_type operator()(vector_base<ScalarType> const & t) const {
+              if(t.start()>0)
+                return "vr";
+              if(t.stride()>0)
+                return "vst";
+              return "v";
+            }
+        };
+
+        struct mat_repr{
+            typedef const char * result_type;
+            template<class ScalarType, class Layout>
+            result_type operator()(matrix_base<ScalarType, Layout> const & t) const {
+              if(t.start1()>0)
+                return "mr";
+              return "m";
+            }
+        };
+
+
+        void make_program_name(char *& ptr) const{
           for(std::vector<scheduler::statement>::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             scheduler::statement::container_type const & expr = it->array();
             for(std::size_t j = 0 ; j < expr.size() ; ++j){
-              append_type_to_string(ptr, expr[j].lhs_type_);
-              *ptr++ = '.';
-              append_type_to_string(ptr, expr[j].op_type_);
-              *ptr++ = '.';
-              append_type_to_string(ptr, expr[j].rhs_type_);
-              *ptr++ = '_';
+
+              if(expr[j].lhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY){
+                strcat(ptr, "_");
+              }
+              else{
+                if(expr[j].lhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
+                  strcat(ptr, utils::call_on_vector(expr[j].lhs_type_, expr[j].lhs_, vec_repr()));
+                else if(expr[j].lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY){
+                  strcat(ptr, utils::call_on_matrix(expr[j].lhs_type_, expr[j].lhs_, mat_repr()));
+                }
+                strcat(ptr, detail::generate_scalartype(expr[j].lhs_type_));
+              }
+
+              strcat(ptr, detail::generate(expr[j].op_type_));
+
+              if(expr[j].rhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY){
+                strcat(ptr, "_");
+              }
+              else{
+                if(expr[j].rhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
+                  strcat(ptr, utils::call_on_vector(expr[j].rhs_type_, expr[j].rhs_, vec_repr()));
+                else if(expr[j].rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY){
+                  strcat(ptr, utils::call_on_matrix(expr[j].rhs_type_, expr[j].rhs_, mat_repr()));
+                }
+                strcat(ptr, detail::generate_scalartype(expr[j].rhs_type_));
+              }
+
+
             }
           }
-          *ptr++ = '\0';
         }
+
+
 
         std::string make_program_string(std::vector<std::string> & kernels_name){
           unsigned int kernel_name_offset = 0;

@@ -108,13 +108,13 @@ int run_benchmark()
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < 1000 ; ++i){
-      char name[1024];
-      name[0] = 0;
+      char * name = (char*)malloc(1024*sizeof(char));
+      name[0] = '\0';
       generator.make_program_name(name);
     }
     double time = t.get();
-    char name[1024];
-    name[0] = 0;
+    char * name = (char*)malloc(1024*sizeof(char));
+    name[0] = '\0';
     generator.make_program_name(name);
     std::cout << time << " " << name << std::endl;
 
