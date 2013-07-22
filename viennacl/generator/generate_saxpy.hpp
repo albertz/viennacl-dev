@@ -48,6 +48,10 @@ namespace viennacl{
               size1 = group_size_;
               size2 = 1;
             }
+            virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const{
+              scheduler::statement_node first_node = statements.front().array()[0];
+              k.arg(n_arg++, cl_uint(utils::size(first_node.lhs_type_, first_node.lhs_)));
+            }
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
             }
@@ -58,7 +62,7 @@ namespace viennacl{
         };
 
       public:
-        vector_saxpy(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
+        vector_saxpy(template_base::statements_type const & s, profile const & p) : template_base(s, 1, profile_), profile_(p){ }
 
         void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const {
           stream << "for(unsigned int i = get_global_id(0) ; i < N ; i += get_global_size(0))" << std::endl;
@@ -103,6 +107,11 @@ namespace viennacl{
               x = group_size1_;
               y = group_size2_;
             }
+            virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const{
+              scheduler::statement_node first_node = statements.front().array()[0];
+              k.arg(n_arg++, cl_uint(utils::size1(first_node.lhs_type_, first_node.lhs_)));
+              k.arg(n_arg++, cl_uint(utils::size2(first_node.lhs_type_, first_node.lhs_)));
+            }
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
@@ -126,7 +135,7 @@ namespace viennacl{
         }
 
       public:
-        matrix_saxpy(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
+        matrix_saxpy(template_base::statements_type const & s, profile const & p) : template_base(s, 1, profile_), profile_(p){ }
 
         void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const {
           stream << "for(unsigned int i = get_global_id(0) ; i < M ; i += get_global_size(0))" << std::endl;

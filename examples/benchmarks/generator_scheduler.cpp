@@ -105,7 +105,19 @@ int run_benchmark()
   {
     viennacl::generator::code_generator generator;
     generator.add_statement(viennacl::scheduler::statement(vcl_mat1, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat2, vcl_mat3)));
-    std::cout << generator.make_program_string() << std::endl;
+    Timer t;
+    t.start();
+    for(unsigned int i = 0 ; i < 1000 ; ++i){
+      char name[1024];
+      name[0] = 0;
+      generator.make_program_name(name);
+    }
+    double time = t.get();
+    char name[1024];
+    name[0] = 0;
+    generator.make_program_name(name);
+    std::cout << time << " " << name << std::endl;
+
   }
 
   return 0;

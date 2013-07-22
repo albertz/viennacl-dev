@@ -23,6 +23,8 @@
     @brief User interface
 */
 
+#include <cstring>
+
 #include <vector>
 #include "viennacl/scheduler/forwards.h"
 
@@ -93,20 +95,20 @@ namespace viennacl{
 
 
       private:
-        template<class Generator>
-        static void generate(Generator const & g, utils::kernel_generation_stream & stream, std::size_t kernel_id = 0){
+        static void append_type_to_string(char * & ptr, int val){
+          if(val==0)
+            *ptr++='0';
+          else
+            while(val>0)
+            {
+                *ptr++='0' + (val % 10);
+                val /= 10;
+            }
+        }
 
-          //prototype:
-          stream << "__kernel void kernel_" << kernel_id << "(" << std::endl;
-          g.prototype(stream);
-          stream << ")" << std::endl;
-
-          //core:
-          stream << "{" << std::endl;
-          stream.inc_tab();
-          g.core(kernel_id, stream);
-          stream.dec_tab();
-          stream << "}" << std::endl;
+        template<class T>
+        static void merge(T & first, T const & second){
+          first.insert(first.end(), second.begin(), second.end());
         }
 
       public:
@@ -119,12 +121,45 @@ namespace viennacl{
 
         void add_statement(scheduler::statement const & s) { statements_.push_back(s); }
 
-        std::string make_program_name(){
-          return "";
+        void configure_program(viennacl::ocl::program & p){
+          statement first_statement = statements_.front();
+          switch(type_family_of(first_statement.array())){
+            case VECTOR_SAXPY:
+
+              break;
+            case MATRIX_SAXPY:
+              break;
+            case SCALAR_REDUCE:
+              break;
+            case VECTOR_REDUCE:
+              break;
+            case MATRIX_PRODUCT:
+              break;
+            default:
+              throw "not implemented";
+              break;
+          }
         }
 
-        std::string make_program_string(){
+        void make_program_name(char * ptr) const{
+          for(std::vector<scheduler::statement>::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
+            scheduler::statement::container_type const & expr = it->array();
+            for(std::size_t j = 0 ; j < expr.size() ; ++j){
+              append_type_to_string(ptr, expr[j].lhs_type_);
+              *ptr++ = '.';
+              append_type_to_string(ptr, expr[j].op_type_);
+              *ptr++ = '.';
+              append_type_to_string(ptr, expr[j].rhs_type_);
+              *ptr++ = '_';
+            }
+          }
+          *ptr++ = '\0';
+        }
+
+        std::string make_program_string(std::vector<std::string> & kernels_name){
+          unsigned int kernel_name_offset = 0;
           utils::kernel_generation_stream stream;
+          statement first_statement = statements_.front();
 
           //Headers generation
           stream << "#if defined(cl_khr_fp64)\n";
@@ -132,28 +167,27 @@ namespace viennacl{
           stream <<  "#elif defined(cl_amd_fp64)\n";
           stream <<  "#  pragma OPENCL EXTENSION cl_amd_fp64: enable\n";
           stream <<  "#endif\n";
-
           stream << std::endl;
 
-          statement first_statement = statements_.front();
           switch(type_family_of(first_statement.array())){
             case VECTOR_SAXPY:
-              generate(vector_saxpy(statements_, vector_saxpy_profile_), stream);
+              merge(kernels_name, vector_saxpy(statements_, vector_saxpy_profile_)(stream, kernel_name_offset));
               break;
             case MATRIX_SAXPY:
-              generate(matrix_saxpy(statements_, matrix_saxpy_profile_), stream);
+              merge(kernels_name, matrix_saxpy(statements_, matrix_saxpy_profile_)(stream, kernel_name_offset));
               break;
             case SCALAR_REDUCE:
-              generate(scalar_reduction(statements_, scalar_reduction_profile_), stream, 0);
-              generate(scalar_reduction(statements_, scalar_reduction_profile_), stream, 1);
+              merge(kernels_name, scalar_reduction(statements_, scalar_reduction_profile_)(stream, kernel_name_offset));
               break;
             case VECTOR_REDUCE:
-              generate(vector_reduction(statements_, vector_reduction_profile_), stream);
+              merge(kernels_name, vector_reduction(statements_, vector_reduction_profile_)(stream, kernel_name_offset));
               break;
             case MATRIX_PRODUCT:
-              generate(matrix_product(statements_,matrix_product_profile_), stream);
+              merge(kernels_name, matrix_product(statements_,matrix_product_profile_)(stream, kernel_name_offset));
               break;
-            default:  throw "not implemented";  break;
+            default:
+              throw "not implemented";
+              break;
           }
           return stream.str();
         }

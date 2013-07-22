@@ -57,6 +57,47 @@ namespace viennacl{
               s1 = m_;
               s2 = k_;
             }
+
+            virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const{
+              for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
+                scheduler::statement::container_type exprs = it->array();
+                for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit){
+                  if(iit->op_type_==scheduler::OPERATION_BINARY_MAT_VEC_PROD_TYPE){
+                    scheduler::statement_node const * current_node = &(*iit);
+
+                    //The LHS of the prod is a matrix
+                    if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                       ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                    {
+                      k.arg(n_arg++, cl_uint(utils::size1(current_node->lhs_type_, current_node->lhs_)));
+                      k.arg(n_arg++, cl_uint(utils::size2(current_node->lhs_type_, current_node->lhs_)));
+                      return;
+                    }
+
+                    //The LHS of the prod is a matrix expression
+                    current_node = &exprs[current_node->lhs_.node_index_];
+                    if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                       ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                    {
+                      k.arg(n_arg++, cl_uint(utils::size1(current_node->lhs_type_, current_node->lhs_)));
+                      k.arg(n_arg++, cl_uint(utils::size2(current_node->lhs_type_, current_node->lhs_)));
+                      return;
+                    }
+                    else if(current_node->rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                            ||current_node->rhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                    {
+                      k.arg(n_arg++, cl_uint(utils::size1(current_node->rhs_type_, current_node->rhs_)));
+                      k.arg(n_arg++, cl_uint(utils::size2(current_node->rhs_type_, current_node->rhs_)));
+                      return;
+                    }
+                    else{
+                      assert(false && bool("unexpected expression tree"));
+                    }
+                  }
+                }
+              }
+            }
+
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
@@ -68,7 +109,7 @@ namespace viennacl{
         };
 
       public:
-        vector_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
+        vector_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, 1, profile_), profile_(p){ }
 
         void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const{
 

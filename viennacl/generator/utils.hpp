@@ -25,13 +25,57 @@
 
 #include <sstream>
 
+#include "viennacl/traits/size.hpp"
+
+#include "viennacl/scheduler/forwards.h"
+
 namespace viennacl{
 
   namespace generator{
 
     namespace utils{
 
+      std::size_t size(scheduler::statement_node_type type, scheduler::lhs_rhs_element element){
+        switch(type){
+          case scheduler::VECTOR_FLOAT_TYPE :
+            return viennacl::traits::size(*static_cast<viennacl::vector<float> * >(element.vector_float_));
+          case scheduler::VECTOR_DOUBLE_TYPE :
+            return viennacl::traits::size(*static_cast<viennacl::vector<double> * >(element.vector_double_));
+          default :
+            throw "not implemented";
+        }
+      }
       
+      std::size_t size1(scheduler::statement_node_type type, scheduler::lhs_rhs_element element){
+        switch(type){
+          case scheduler::MATRIX_ROW_FLOAT_TYPE :
+            return viennacl::traits::size1(*static_cast<viennacl::matrix<float, viennacl::row_major >* >(element.matrix_row_float_));
+          case scheduler::MATRIX_COL_FLOAT_TYPE :
+            return viennacl::traits::size1(*static_cast<viennacl::matrix<float, viennacl::column_major >* >(element.matrix_col_float_));
+          case scheduler::MATRIX_ROW_DOUBLE_TYPE :
+            return viennacl::traits::size1(*static_cast<viennacl::matrix<double, viennacl::row_major >* >(element.matrix_row_double_));
+          case scheduler::MATRIX_COL_DOUBLE_TYPE :
+            return viennacl::traits::size1(*static_cast<viennacl::matrix<double, viennacl::column_major >* >(element.matrix_col_double_));
+          default :
+            throw "not implemented";
+        }
+      }
+
+      std::size_t size2(scheduler::statement_node_type type, scheduler::lhs_rhs_element element){
+        switch(type){
+          case scheduler::MATRIX_ROW_FLOAT_TYPE :
+            return viennacl::traits::size2(*static_cast<viennacl::matrix<float, viennacl::row_major >* >(element.matrix_row_float_));
+          case scheduler::MATRIX_COL_FLOAT_TYPE :
+            return viennacl::traits::size2(*static_cast<viennacl::matrix<float, viennacl::column_major >* >(element.matrix_col_float_));
+          case scheduler::MATRIX_ROW_DOUBLE_TYPE :
+            return viennacl::traits::size2(*static_cast<viennacl::matrix<double, viennacl::row_major >* >(element.matrix_row_double_));
+          case scheduler::MATRIX_COL_DOUBLE_TYPE :
+            return viennacl::traits::size2(*static_cast<viennacl::matrix<double, viennacl::column_major >* >(element.matrix_col_double_));
+          default :
+            throw "not implemented";
+        }
+      }
+
       template<class T, class U>
       struct is_same_type { enum { value = 0 }; };
 

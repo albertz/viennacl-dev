@@ -56,6 +56,18 @@ namespace viennacl{
               s1 = group_size_;
               s2 = 1;
             }
+
+            virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const{
+              scheduler::statement_node first_node = statements.front().array()[0];
+              k.arg(n_arg++, cl_uint(utils::size(first_node.lhs_type_, first_node.lhs_)));
+//              for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
+//                scheduler::statement::container_type exprs = it->array();
+//                for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit)
+//                  if(iit->op_type_==scheduler::OPERATION_BINARY_INNER_PROD_TYPE)
+//                    k.arg(n_arg++,NULL);
+//              }
+            }
+
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
               std::size_t i = 0;
@@ -188,7 +200,7 @@ namespace viennacl{
         }
 
       public:
-        scalar_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){
+        scalar_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, 2, profile_), profile_(p){
 
         }
 

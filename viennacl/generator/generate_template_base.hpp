@@ -52,6 +52,7 @@ namespace viennacl{
             profile(unsigned int vectorization) : vectorization_(vectorization){ }
 
             virtual void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const = 0;
+            virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const = 0;
             virtual void set_local_sizes(std::size_t & size1, std::size_t & size2) const = 0;
 
             /** @brief returns whether or not the profile leads to undefined behavior on particular device
@@ -77,11 +78,8 @@ namespace viennacl{
         };
 
       protected:
-        statements_type const & statements_;
-        mutable std::vector<detail::mapping_type> mapping_;
-        profile const & profile_;
-
-        template_base(statements_type const & s, profile const & p) : statements_(s), mapping_(s.size()), profile_(p) { }
+        virtual void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const = 0;
+        template_base(statements_type const & s, std::size_t num_kernels, profile const & p) : statements_(s), num_kernels_(num_kernels), mapping_(s.size()), profile_(p) { }
 
       public:
         void prototype(utils::kernel_generation_stream & stream) const {
@@ -96,6 +94,29 @@ namespace viennacl{
           stream << prototype << std::endl;
         }
 
+        virtual std::vector<std::string> operator()(utils::kernel_generation_stream & stream, unsigned int & kernel_name_offset) const {
+          std::vector<std::string> kernel_names;
+          for(std::size_t n = 0 ; n < num_kernels_ ; ++n){
+            kernel_names.push_back("kernel_" + utils::to_string(kernel_name_offset++));
+            stream << "__kernel void " << kernel_names.back() << "(" << std::endl;
+            prototype(stream);
+            stream << ")" << std::endl;
+
+            //core:
+            stream << "{" << std::endl;
+            stream.inc_tab();
+            core(n, stream);
+            stream.dec_tab();
+            stream << "}" << std::endl;
+          }
+          return kernel_names;
+        }
+
+      protected:
+        statements_type const & statements_;
+        std::size_t num_kernels_;
+        mutable std::vector<detail::mapping_type> mapping_;
+        profile const & profile_;
     };
 
 

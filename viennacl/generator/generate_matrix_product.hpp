@@ -66,19 +66,65 @@ namespace viennacl{
               unroll_ = unroll;
             }
 
+
+
             void set_local_sizes(std::size_t& s1, std::size_t& s2) const{
               s1 = ml_/ms_;
               s2 = nl_/ns_;
             }
 
+            virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const {
+              //set M, N
+              scheduler::statement_node first_node = statements.front().array()[0];
+              k.arg(n_arg++, cl_uint(utils::size1(first_node.lhs_type_, first_node.lhs_)));
+              k.arg(n_arg++, cl_uint(utils::size2(first_node.lhs_type_, first_node.lhs_)));
+
+              //set K
+              for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
+                scheduler::statement::container_type exprs = it->array();
+                for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit){
+                  if(iit->op_type_==scheduler::OPERATION_BINARY_MAT_MAT_PROD_TYPE){
+                    scheduler::statement_node const * current_node = &(*iit);
+
+                    //The LHS of the prod is a matrix
+                    if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                       ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                    {
+                      k.arg(n_arg++, cl_uint(utils::size2(current_node->lhs_type_, current_node->lhs_)));
+                      return;
+                    }
+
+                    //The LHS of the prod is a matrix expression
+                    current_node = &exprs[current_node->lhs_.node_index_];
+                    if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                       ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                    {
+                      k.arg(n_arg++, cl_uint(utils::size2(current_node->lhs_type_, current_node->lhs_)));
+                      return;
+                    }
+                    else if(current_node->rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                            ||current_node->rhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                    {
+                      k.arg(n_arg++, cl_uint(utils::size2(current_node->rhs_type_, current_node->rhs_)));
+                      return;
+                    }
+                    else{
+                      assert(false && bool("unexpected expression tree"));
+                    }
+
+
+                  }
+                }
+              }
+            }
             static std::string size1() { return "M";  }
             static std::string size2() { return "K"; }
             static std::string size3() { return "N"; }
 
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
-              arguments_string += detail::generate_value_kernel_argument("unsigned int", "K");
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
+              arguments_string += detail::generate_value_kernel_argument("unsigned int", "K");
             }
 
           private:
@@ -271,7 +317,7 @@ namespace viennacl{
 
 
       public:
-        matrix_product(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
+        matrix_product(template_base::statements_type const & s, profile const & p) : template_base(s, 1, profile_), profile_(p){ }
 
         void core(std::size_t idx, utils::kernel_generation_stream& stream) const{
 
