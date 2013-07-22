@@ -35,45 +35,63 @@ namespace viennacl{
 
     namespace utils{
 
-      std::size_t size(scheduler::statement_node_type type, scheduler::lhs_rhs_element element){
+      template<class Fun>
+      typename Fun::result_type call_on_vector(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
         switch(type){
           case scheduler::VECTOR_FLOAT_TYPE :
-            return viennacl::traits::size(*static_cast<viennacl::vector<float> * >(element.vector_float_));
+            return fun(*static_cast<viennacl::vector<float> * >(element.vector_float_));
           case scheduler::VECTOR_DOUBLE_TYPE :
-            return viennacl::traits::size(*static_cast<viennacl::vector<double> * >(element.vector_double_));
-          default :
-            throw "not implemented";
-        }
-      }
-      
-      std::size_t size1(scheduler::statement_node_type type, scheduler::lhs_rhs_element element){
-        switch(type){
-          case scheduler::MATRIX_ROW_FLOAT_TYPE :
-            return viennacl::traits::size1(*static_cast<viennacl::matrix<float, viennacl::row_major >* >(element.matrix_row_float_));
-          case scheduler::MATRIX_COL_FLOAT_TYPE :
-            return viennacl::traits::size1(*static_cast<viennacl::matrix<float, viennacl::column_major >* >(element.matrix_col_float_));
-          case scheduler::MATRIX_ROW_DOUBLE_TYPE :
-            return viennacl::traits::size1(*static_cast<viennacl::matrix<double, viennacl::row_major >* >(element.matrix_row_double_));
-          case scheduler::MATRIX_COL_DOUBLE_TYPE :
-            return viennacl::traits::size1(*static_cast<viennacl::matrix<double, viennacl::column_major >* >(element.matrix_col_double_));
+            return fun(*static_cast<viennacl::vector<double> * >(element.vector_double_));
           default :
             throw "not implemented";
         }
       }
 
-      std::size_t size2(scheduler::statement_node_type type, scheduler::lhs_rhs_element element){
+      template<class Fun>
+      typename Fun::result_type call_on_matrix(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
         switch(type){
           case scheduler::MATRIX_ROW_FLOAT_TYPE :
-            return viennacl::traits::size2(*static_cast<viennacl::matrix<float, viennacl::row_major >* >(element.matrix_row_float_));
-          case scheduler::MATRIX_COL_FLOAT_TYPE :
-            return viennacl::traits::size2(*static_cast<viennacl::matrix<float, viennacl::column_major >* >(element.matrix_col_float_));
+            return fun(*static_cast<viennacl::matrix<float, viennacl::row_major> * >(element.matrix_row_float_));
           case scheduler::MATRIX_ROW_DOUBLE_TYPE :
-            return viennacl::traits::size2(*static_cast<viennacl::matrix<double, viennacl::row_major >* >(element.matrix_row_double_));
+            return fun(*static_cast<viennacl::matrix<double, viennacl::row_major> * >(element.matrix_row_double_));
+
+          case scheduler::MATRIX_COL_FLOAT_TYPE :
+            return fun(*static_cast<viennacl::matrix<float, viennacl::column_major> * >(element.matrix_col_float_));
           case scheduler::MATRIX_COL_DOUBLE_TYPE :
-            return viennacl::traits::size2(*static_cast<viennacl::matrix<double, viennacl::column_major >* >(element.matrix_col_double_));
+            return fun(*static_cast<viennacl::matrix<double, viennacl::column_major> * >(element.matrix_col_double_));
           default :
             throw "not implemented";
         }
+      }
+
+      struct size_fun{
+          typedef std::size_t result_type;
+          template<class T>
+          result_type operator()(T const &t) const { return viennacl::traits::size(t); }
+      };
+
+      struct size1_fun{
+          typedef std::size_t result_type;
+          template<class T>
+          result_type operator()(T const &t) const { return viennacl::traits::size1(t); }
+      };
+
+      struct size2_fun{
+          typedef std::size_t result_type;
+          template<class T>
+          result_type operator()(T const &t) const { return viennacl::traits::size2(t); }
+      };
+
+      std::size_t size(scheduler::statement_node_type type, scheduler::lhs_rhs_element element){
+        return call_on_vector(type, element, size_fun());
+      }
+      
+      std::size_t size1(scheduler::statement_node_type type, scheduler::lhs_rhs_element element){
+        return call_on_matrix(type, element, size1_fun());
+      }
+
+      std::size_t size2(scheduler::statement_node_type type, scheduler::lhs_rhs_element element){
+        return call_on_matrix(type, element, size2_fun());
       }
 
       template<class T, class U>

@@ -76,8 +76,8 @@ namespace viennacl{
             virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const {
               //set M, N
               scheduler::statement_node first_node = statements.front().array()[0];
-              k.arg(n_arg++, cl_uint(utils::size1(first_node.lhs_type_, first_node.lhs_)));
-              k.arg(n_arg++, cl_uint(utils::size2(first_node.lhs_type_, first_node.lhs_)));
+              k.arg(n_arg++, cl_uint(utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size1_fun())));
+              k.arg(n_arg++, cl_uint(utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size2_fun())));
 
               //set K
               for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
@@ -90,7 +90,7 @@ namespace viennacl{
                     if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
                        ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
                     {
-                      k.arg(n_arg++, cl_uint(utils::size2(current_node->lhs_type_, current_node->lhs_)));
+                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
                       return;
                     }
 
@@ -99,13 +99,13 @@ namespace viennacl{
                     if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
                        ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
                     {
-                      k.arg(n_arg++, cl_uint(utils::size2(current_node->lhs_type_, current_node->lhs_)));
+                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
                       return;
                     }
                     else if(current_node->rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
                             ||current_node->rhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
                     {
-                      k.arg(n_arg++, cl_uint(utils::size2(current_node->rhs_type_, current_node->rhs_)));
+                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
                       return;
                     }
                     else{

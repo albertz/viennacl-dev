@@ -50,7 +50,7 @@ namespace viennacl{
             }
             virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const{
               scheduler::statement_node first_node = statements.front().array()[0];
-              k.arg(n_arg++, cl_uint(utils::size(first_node.lhs_type_, first_node.lhs_)));
+              k.arg(n_arg++, cl_uint(utils::call_on_vector(first_node.lhs_type_, first_node.lhs_, utils::size_fun())));
             }
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
@@ -109,8 +109,8 @@ namespace viennacl{
             }
             virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const{
               scheduler::statement_node first_node = statements.front().array()[0];
-              k.arg(n_arg++, cl_uint(utils::size1(first_node.lhs_type_, first_node.lhs_)));
-              k.arg(n_arg++, cl_uint(utils::size2(first_node.lhs_type_, first_node.lhs_)));
+              k.arg(n_arg++, cl_uint(utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size1_fun())));
+              k.arg(n_arg++, cl_uint(utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size2_fun())));
             }
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
