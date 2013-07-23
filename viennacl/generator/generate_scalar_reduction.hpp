@@ -57,7 +57,7 @@ namespace viennacl{
               s2 = 1;
             }
 
-            virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const{
+            virtual void enqueue_kernel_arguments_impl(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
               scheduler::statement_node first_node = statements.front().array()[0];
               k.arg(n_arg++, cl_uint(utils::call_on_vector(first_node.lhs_type_, first_node.lhs_, utils::size_fun())));
 //              for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){

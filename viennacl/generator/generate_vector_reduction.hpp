@@ -58,7 +58,7 @@ namespace viennacl{
               s2 = k_;
             }
 
-            virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const{
+            virtual void enqueue_kernel_arguments_impl(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
               for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
                 scheduler::statement::container_type exprs = it->array();
                 for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit){

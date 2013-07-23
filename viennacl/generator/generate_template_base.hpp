@@ -48,11 +48,16 @@ namespace viennacl{
           protected:
             virtual bool invalid_impl(viennacl::ocl::device const & dev, size_t scalartype_size) const{ return false; }
             virtual std::size_t lmem_used(std::size_t scalartype_size) const { return 0; }
+            virtual void enqueue_kernel_arguments_impl(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg) const = 0;
+
           public:
             profile(unsigned int vectorization) : vectorization_(vectorization){ }
+            void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k) const{
+              unsigned int n_arg = 0;
+              enqueue_kernel_arguments_impl(statements, k, n_arg);
+            }
 
             virtual void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const = 0;
-            virtual void enqueue_kernel_arguments(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg, unsigned int kernel_id) const = 0;
             virtual void set_local_sizes(std::size_t & size1, std::size_t & size2) const = 0;
 
             /** @brief returns whether or not the profile leads to undefined behavior on particular device

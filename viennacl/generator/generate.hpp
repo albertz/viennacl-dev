@@ -137,12 +137,29 @@ namespace viennacl{
         }
 
         void configure_program(viennacl::ocl::program & p){
-
+          unsigned int kernel_id = 0;
+          const char * kernel_prefix = "kernel_";
+          for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
+            switch(it->first){
+              case VECTOR_SAXPY:
+                vector_saxpy_profile_.enqueue_kernel_arguments(it->second,p.get_kernel(kernel_prefix+utils::to_string(kernel_id++)));
+                break;
+              case MATRIX_SAXPY:
+                break;
+              case SCALAR_REDUCE:
+                break;
+              case VECTOR_REDUCE:
+                break;
+              case MATRIX_PRODUCT:
+                break;
+              default:
+                break;
+            }
+          }
         }
 
         void make_program_name(char *& ptr) const{
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
-
             for(std::vector<scheduler::statement>::const_iterator iit = it->second.begin() ; iit != it->second.end() ; ++iit){
               scheduler::statement::container_type const & expr = iit->array();
               for(std::size_t j = 0 ; j < expr.size() ; ++j){

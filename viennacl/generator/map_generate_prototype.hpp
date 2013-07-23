@@ -48,86 +48,105 @@ namespace viennacl{
           std::size_t & current_arg_;
 
 
-          std::string prototype_value_generation(std::string const & scalartype, void * handle) const{
-            if(memory_.insert(std::make_pair(handle, current_arg_)).second){
-              std::string name =  "arg" + utils::to_string(current_arg_++);
-              str_ += detail::generate_value_kernel_argument(scalartype, name);
-              return name;
-            }
+          std::string create_name(void * handle) const{
+            if(memory_.insert(std::make_pair(handle, current_arg_)).second)
+              return "arg" + utils::to_string(current_arg_++);
             else
               return "arg" + utils::to_string(memory_.at(handle));
           }
 
-          std::string prototype_pointer_generation(std::string const & scalartype, void * handle) const {
-            if(memory_.insert(std::make_pair(handle, current_arg_)).second){
-              std::string name =  "arg" + utils::to_string(current_arg_++);
-              str_ += detail::generate_pointer_kernel_argument("__global", scalartype, name);
-              return name;
-            }
-            else
-              return "arg" + utils::to_string(memory_.at(handle));
-          }
+//          std::string create_name(void * handle) const {
+//            if(memory_.insert(std::make_pair(handle, current_arg_)).second){
+//              std::string name =  "arg" + utils::to_string(current_arg_++);
+////              ;
+//              return name;
+//            }
+//            else
+//              return "arg" + utils::to_string(memory_.at(handle));
+//          }
 
           template<class ScalarType>
           void host_scalar_prototype(index_info const & key, ScalarType * scal) const {
             mapped_host_scalar * p = new mapped_host_scalar(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
-            p->name_ = prototype_value_generation(p->scalartype_, (void *)scal);
+            p->name_ = create_name((void *)scal);
+            str_ += detail::generate_value_kernel_argument(p->scalartype_, p->name_);
           }
 
           template<class ScalarType>
           void scalar_prototype(index_info const & key, scalar<ScalarType> * scal) const{
             mapped_scalar * p = new mapped_scalar(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
-            p->name_ = prototype_pointer_generation(p->scalartype_, (void*)scal);
+            p->name_ = create_name((void*)scal);
+            str_ += detail::generate_value_kernel_argument(p->scalartype_, p->name_);
           }
 
           template<class ScalarType>
           void vector_prototype(index_info const & key, vector_base<ScalarType> * vec) const {
             mapped_vector * p = new mapped_vector(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
-            p->name_ = prototype_pointer_generation(p->scalartype_, (void*)vec);
-            if(vec->start() > 0)
-              p->start_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
-            if(vec->stride() > 1)
-              p->shift_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
+            p->name_ = create_name((void*)vec);
+            str_ += detail::generate_pointer_kernel_argument("__global",p->scalartype_, p->name_);
+            if(vec->start() > 0){
+              p->start_name_ = p->name_ +"_start";
+              str_ += detail::generate_value_kernel_argument("unsigned int", p->start_name_);
+            }
+            if(vec->stride() > 1){
+              p->stride_name_ = p->name_ + "_stride";
+              str_ += detail::generate_value_kernel_argument("unsigned int", p->stride_name_);
+            }
           }
 
           template<class ScalarType, class F>
           void matrix_prototype(index_info const & key, matrix_base<ScalarType, F> * mat) const {
             mapped_matrix * p = new mapped_matrix(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
-            p->name_ = prototype_pointer_generation(p->scalartype_, (void*)mat);
+            p->name_ = create_name((void*)mat);
+            str_ += detail::generate_pointer_kernel_argument("__global",p->scalartype_, p->name_);
             if(utils::is_same_type<F, viennacl::row_major>::value)
                p->is_row_major_ = true;
             else
               p->is_row_major_ = false;
-            if(mat->start1() > 0)
-              p->start1_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
-            if(mat->stride1() > 1)
-              p->stride1_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
-            if(mat->start2() > 0)
-              p->start2_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
-            if(mat->stride2() > 1)
-              p->stride2_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
+            if(mat->start1() > 0){
+              p->start1_name_ = p->name_ + "start1_";
+              str_ += detail::generate_value_kernel_argument("unsigned int", p->start1_name_);
+            }
+            if(mat->stride1() > 1){
+              p->stride1_name_ = p->name_ + "stride1_";
+              str_ += detail::generate_value_kernel_argument("unsigned int", p->stride1_name_);
+            }
+            if(mat->start2() > 0){
+              p->start2_name_ = p->name_ + "start2_";
+              str_ += detail::generate_value_kernel_argument("unsigned int", p->start2_name_);
+            }
+            if(mat->stride2() > 1){
+              p->stride2_name_ = p->name_ + "stride2_";
+              str_ += detail::generate_value_kernel_argument("unsigned int", p->stride2_name_);
+            }
+
           }
 
           template<class ScalarType>
           void symbolic_vector_prototype(index_info const & key, symbolic_vector_base<ScalarType> * vec) const {
             mapped_symbolic_vector * p = new mapped_symbolic_vector(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
-            if(!vec->is_value_static())
-              p->value_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
+            if(!vec->is_value_static()){
+              p->value_name_ = create_name((void*)vec);
+              str_ += detail::generate_value_kernel_argument(p->scalartype(), p->value_name_);
+            }
             if(vec->index().first)
-              p->index_name_ = prototype_value_generation(p->scalartype_, (void*)vec);
+              p->index_name_ = create_name((void*)vec);
+            str_ += detail::generate_value_kernel_argument("unsigned int", p->index_name_);
           }
 
           template<class ScalarType>
           void symbolic_matrix_prototype(index_info const & key, symbolic_matrix_base<ScalarType> * mat) const {
             mapped_symbolic_matrix * p = new mapped_symbolic_matrix(utils::type_to_string<ScalarType>::value());
             mapping_.insert(std::make_pair(key, tools::shared_ptr<mapped_container>(p)));
-            if(!mat->is_value_static())
-              p->value_name_ = prototype_value_generation(p->scalartype_, (void*)mat);
+            if(!mat->is_value_static()){
+              p->value_name_ = create_name((void*)mat);
+              str_ += detail::generate_value_kernel_argument(p->scalartype(), p->value_name_);
+            }
             if(mat->diag())
               p->is_diag_ = true;
           }
