@@ -58,6 +58,7 @@ namespace viennacl{
             else
               return generate_default(index);
           }
+          virtual std::string & append_kernel_arguments(std::string & str){ }
           virtual ~mapped_container(){ }
         protected:
           std::string access_name_;

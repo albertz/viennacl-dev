@@ -36,12 +36,48 @@ namespace viennacl{
     namespace utils{
 
       template<class Fun>
+      typename Fun::result_type call_on_host_scalar(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
+        switch(type){
+          case scheduler::HOST_SCALAR_FLOAT_TYPE :
+            return fun(element.host_float_);
+          case scheduler::HOST_SCALAR_DOUBLE_TYPE :
+            return fun(element.host_double_);
+          default :
+            throw "not implemented";
+        }
+      }
+
+      template<class Fun>
+      typename Fun::result_type call_on_scalar(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
+        switch(type){
+          case scheduler::SCALAR_FLOAT_TYPE :
+            return fun(*element.scalar_float_);
+          case scheduler::SCALAR_DOUBLE_TYPE :
+            return fun(*element.scalar_double_);
+          default :
+            throw "not implemented";
+        }
+      }
+
+      template<class Fun>
       typename Fun::result_type call_on_vector(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
         switch(type){
           case scheduler::VECTOR_FLOAT_TYPE :
-            return fun(*static_cast<viennacl::vector<float> * >(element.vector_float_));
+            return fun(*element.vector_float_);
           case scheduler::VECTOR_DOUBLE_TYPE :
-            return fun(*static_cast<viennacl::vector<double> * >(element.vector_double_));
+            return fun(*element.vector_double_);
+          default :
+            throw "not implemented";
+        }
+      }
+
+      template<class Fun>
+      typename Fun::result_type call_on_symbolic_vector(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
+        switch(type){
+          case scheduler::SYMBOLIC_VECTOR_FLOAT_TYPE :
+            return fun(*element.symbolic_vector_float_);
+          case scheduler::SYMBOLIC_VECTOR_DOUBLE_TYPE :
+            return fun(element.symbolic_vector_double_);
           default :
             throw "not implemented";
         }
@@ -51,16 +87,49 @@ namespace viennacl{
       typename Fun::result_type call_on_matrix(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
         switch(type){
           case scheduler::MATRIX_ROW_FLOAT_TYPE :
-            return fun(*static_cast<viennacl::matrix<float, viennacl::row_major> * >(element.matrix_row_float_));
+            return fun(*element.matrix_row_float_);
           case scheduler::MATRIX_ROW_DOUBLE_TYPE :
-            return fun(*static_cast<viennacl::matrix<double, viennacl::row_major> * >(element.matrix_row_double_));
+            return fun(*element.matrix_row_double_);
 
           case scheduler::MATRIX_COL_FLOAT_TYPE :
-            return fun(*static_cast<viennacl::matrix<float, viennacl::column_major> * >(element.matrix_col_float_));
+            return fun(*element.matrix_col_float_);
           case scheduler::MATRIX_COL_DOUBLE_TYPE :
-            return fun(*static_cast<viennacl::matrix<double, viennacl::column_major> * >(element.matrix_col_double_));
+            return fun(*element.matrix_col_double_);
           default :
             throw "not implemented";
+        }
+      }
+
+
+      template<class Fun>
+      typename Fun::result_type call_on_symbolic_matrix(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
+        switch(type){
+          case scheduler::SYMBOLIC_MATRIX_FLOAT_TYPE :
+            return fun(*element.symbolic_matrix_float_);
+          case scheduler::SYMBOLIC_MATRIX_DOUBLE_TYPE :
+            return fun(element.symbolic_matrix_double_);
+          default :
+            throw "not implemented";
+        }
+      }
+
+      template<class Fun>
+      typename Fun::result_type call_on_element(scheduler::statement_node_type_family family, scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
+        switch(family){
+          case scheduler::HOST_SCALAR_TYPE_FAMILY:
+            return call_on_host_scalar(type, element, fun);
+          case scheduler::SCALAR_TYPE_FAMILY:
+            return call_on_scalar(type, element, fun);
+          case scheduler::VECTOR_TYPE_FAMILY :
+            return call_on_vector(type, element, fun);
+          case scheduler::SYMBOLIC_VECTOR_TYPE_FAMILY :
+            return call_on_symbolic_vector(type, element, fun);
+          case scheduler::MATRIX_ROW_TYPE_FAMILY:
+            return call_on_matrix(type,element,fun);
+          case scheduler::MATRIX_COL_TYPE_FAMILY:
+            return call_on_matrix(type,element,fun);
+          case scheduler::SYMBOLIC_MATRIX_TYPE_FAMILY :
+            return call_on_symbolic_matrix(type, element, fun);
         }
       }
 

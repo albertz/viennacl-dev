@@ -29,6 +29,8 @@
 
 #include "viennacl/scheduler/forwards.h"
 
+#include "viennacl/generator/enqueue_tree.hpp"
+
 #include "viennacl/generator/map_generate_prototype.hpp"
 
 #include "viennacl/generator/generate_saxpy.hpp"
