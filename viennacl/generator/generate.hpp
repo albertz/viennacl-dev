@@ -87,48 +87,11 @@ namespace viennacl{
 
     class code_generator{
       private:
-        generator::template_base::statements_type statements_;
-        vector_saxpy::profile vector_saxpy_profile_;
-        matrix_saxpy::profile matrix_saxpy_profile_;
-        scalar_reduction::profile scalar_reduction_profile_;
-        vector_reduction::profile vector_reduction_profile_;
-        matrix_product::profile matrix_product_profile_;
+        typedef std::list<std::pair<operation_type_family, generator::template_base::statements_type> > statements_type;
 
-
-      private:
         template<class T>
         static void merge(T & first, T const & second){
           first.insert(first.end(), second.begin(), second.end());
-        }
-
-      public:
-        code_generator() : vector_saxpy_profile_(1,128,128,true)
-                          , matrix_saxpy_profile_(1,16,16,16,16,true)
-                          , scalar_reduction_profile_(1, 128, 128, true)
-                          , vector_reduction_profile_(1, 1, 256, 32)
-                          , matrix_product_profile_(1,32,32,32,4,4,4,true,false,1)
-                           { }
-
-        void add_statement(scheduler::statement const & s) { statements_.push_back(s); }
-
-        void configure_program(viennacl::ocl::program & p){
-          statement first_statement = statements_.front();
-          switch(type_family_of(first_statement.array())){
-            case VECTOR_SAXPY:
-
-              break;
-            case MATRIX_SAXPY:
-              break;
-            case SCALAR_REDUCE:
-              break;
-            case VECTOR_REDUCE:
-              break;
-            case MATRIX_PRODUCT:
-              break;
-            default:
-              throw "not implemented";
-              break;
-          }
         }
 
         struct vec_repr{
@@ -153,39 +116,62 @@ namespace viennacl{
             }
         };
 
+      public:
+        code_generator() : vector_saxpy_profile_(1,128,128,true)
+                          , matrix_saxpy_profile_(1,16,16,16,16,true)
+                          , scalar_reduction_profile_(1, 128, 128, true)
+                          , vector_reduction_profile_(1, 1, 256, 32)
+                          , matrix_product_profile_(1,32,32,32,4,4,4,true,false,1)
+                           { }
+
+        bool add_statement(scheduler::statement const & s) {
+          operation_type_family expr_type = type_family_of(s.array());
+          if(statements_.empty())
+            statements_.push_back(std::make_pair(expr_type,template_base::statements_type(1,s)));
+          else
+            if(statements_.back().first == expr_type)
+              statements_.back().second.push_back(s);
+            else
+              statements_.push_back(std::make_pair(expr_type,template_base::statements_type(1,s)));
+          return true;
+        }
+
+        void configure_program(viennacl::ocl::program & p){
+
+        }
 
         void make_program_name(char *& ptr) const{
-          for(std::vector<scheduler::statement>::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
-            scheduler::statement::container_type const & expr = it->array();
-            for(std::size_t j = 0 ; j < expr.size() ; ++j){
+          for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
 
-              if(expr[j].lhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY){
-                strcat(ptr, "_");
-              }
-              else{
-                if(expr[j].lhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
-                  strcat(ptr, utils::call_on_vector(expr[j].lhs_type_, expr[j].lhs_, vec_repr()));
-                else if(expr[j].lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY){
-                  strcat(ptr, utils::call_on_matrix(expr[j].lhs_type_, expr[j].lhs_, mat_repr()));
+            for(std::vector<scheduler::statement>::const_iterator iit = it->second.begin() ; iit != it->second.end() ; ++iit){
+              scheduler::statement::container_type const & expr = iit->array();
+              for(std::size_t j = 0 ; j < expr.size() ; ++j){
+                if(expr[j].lhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY){
+                  strcat(ptr, "_");
                 }
-                strcat(ptr, detail::generate_scalartype(expr[j].lhs_type_));
-              }
-
-              strcat(ptr, detail::generate(expr[j].op_type_));
-
-              if(expr[j].rhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY){
-                strcat(ptr, "_");
-              }
-              else{
-                if(expr[j].rhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
-                  strcat(ptr, utils::call_on_vector(expr[j].rhs_type_, expr[j].rhs_, vec_repr()));
-                else if(expr[j].rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY){
-                  strcat(ptr, utils::call_on_matrix(expr[j].rhs_type_, expr[j].rhs_, mat_repr()));
+                else{
+                  if(expr[j].lhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
+                    strcat(ptr, utils::call_on_vector(expr[j].lhs_type_, expr[j].lhs_, vec_repr()));
+                  else if(expr[j].lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY){
+                    strcat(ptr, utils::call_on_matrix(expr[j].lhs_type_, expr[j].lhs_, mat_repr()));
+                  }
+                  strcat(ptr, detail::generate_scalartype(expr[j].lhs_type_));
                 }
-                strcat(ptr, detail::generate_scalartype(expr[j].rhs_type_));
+
+                strcat(ptr, detail::generate(expr[j].op_type_));
+
+                if(expr[j].rhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY){
+                  strcat(ptr, "_");
+                }
+                else{
+                  if(expr[j].rhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
+                    strcat(ptr, utils::call_on_vector(expr[j].rhs_type_, expr[j].rhs_, vec_repr()));
+                  else if(expr[j].rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY){
+                    strcat(ptr, utils::call_on_matrix(expr[j].rhs_type_, expr[j].rhs_, mat_repr()));
+                  }
+                  strcat(ptr, detail::generate_scalartype(expr[j].rhs_type_));
+                }
               }
-
-
             }
           }
         }
@@ -195,7 +181,6 @@ namespace viennacl{
         std::string make_program_string(std::vector<std::string> & kernels_name){
           unsigned int kernel_name_offset = 0;
           utils::kernel_generation_stream stream;
-          statement first_statement = statements_.front();
 
           //Headers generation
           stream << "#if defined(cl_khr_fp64)\n";
@@ -205,28 +190,39 @@ namespace viennacl{
           stream <<  "#endif\n";
           stream << std::endl;
 
-          switch(type_family_of(first_statement.array())){
-            case VECTOR_SAXPY:
-              merge(kernels_name, vector_saxpy(statements_, vector_saxpy_profile_)(stream, kernel_name_offset));
-              break;
-            case MATRIX_SAXPY:
-              merge(kernels_name, matrix_saxpy(statements_, matrix_saxpy_profile_)(stream, kernel_name_offset));
-              break;
-            case SCALAR_REDUCE:
-              merge(kernels_name, scalar_reduction(statements_, scalar_reduction_profile_)(stream, kernel_name_offset));
-              break;
-            case VECTOR_REDUCE:
-              merge(kernels_name, vector_reduction(statements_, vector_reduction_profile_)(stream, kernel_name_offset));
-              break;
-            case MATRIX_PRODUCT:
-              merge(kernels_name, matrix_product(statements_,matrix_product_profile_)(stream, kernel_name_offset));
-              break;
-            default:
-              throw "not implemented";
-              break;
+          for(statements_type::iterator it = statements_.begin() ; it != statements_.end() ; ++it){
+            switch(it->first){
+              case VECTOR_SAXPY:
+                merge(kernels_name, vector_saxpy(it->second, vector_saxpy_profile_)(stream, kernel_name_offset));
+                break;
+              case MATRIX_SAXPY:
+                merge(kernels_name, matrix_saxpy(it->second, matrix_saxpy_profile_)(stream, kernel_name_offset));
+                break;
+              case SCALAR_REDUCE:
+                merge(kernels_name, scalar_reduction(it->second, scalar_reduction_profile_)(stream, kernel_name_offset));
+                break;
+              case VECTOR_REDUCE:
+                merge(kernels_name, vector_reduction(it->second, vector_reduction_profile_)(stream, kernel_name_offset));
+                break;
+              case MATRIX_PRODUCT:
+                merge(kernels_name, matrix_product(it->second,matrix_product_profile_)(stream, kernel_name_offset));
+                break;
+              default:
+                break;
+            }
           }
           return stream.str();
         }
+
+      private:
+        statements_type statements_;
+
+        vector_saxpy::profile vector_saxpy_profile_;
+        matrix_saxpy::profile matrix_saxpy_profile_;
+        scalar_reduction::profile scalar_reduction_profile_;
+        vector_reduction::profile vector_reduction_profile_;
+        matrix_product::profile matrix_product_profile_;
+
     };
 
 
