@@ -96,17 +96,6 @@ namespace viennacl{
 
 
       private:
-        static void append_type_to_string(char * & ptr, int val){
-          if(val==0)
-            *ptr++='0';
-          else
-            while(val>0)
-            {
-                *ptr++='0' + (val % 10);
-                val /= 10;
-            }
-        }
-
         template<class T>
         static void merge(T & first, T const & second){
           first.insert(first.end(), second.begin(), second.end());

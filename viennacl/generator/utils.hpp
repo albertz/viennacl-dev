@@ -111,7 +111,7 @@ namespace viennacl{
       template<class T>
       struct type_to_string;
 
-      template<> struct type_to_string<float> { static const std::string value() { return "float"; } };
+      template<> struct type_to_string<float> { static const char * value() { return "float"; } };
 
       class kernel_generation_stream : public std::ostream{
         private:

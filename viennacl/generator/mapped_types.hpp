@@ -48,7 +48,7 @@ namespace viennacl{
           };
           virtual std::string generate_default(std::string const & index) const = 0;
         public:
-          mapped_container(std::string const & scalartype) : scalartype_(scalartype){ }
+          mapped_container(std::string const & scalartype) : scalartype_(scalartype){          }
           std::string const & scalartype() const { return scalartype_; }
           void access_name(std::string const & str) { access_name_ = str; }
           std::string const & access_name() const { return access_name_; }

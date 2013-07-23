@@ -81,8 +81,7 @@ namespace viennacl{
         virtual void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const = 0;
         template_base(statements_type const & s, std::size_t num_kernels, profile const & p) : statements_(s), num_kernels_(num_kernels), mapping_(s.size()), profile_(p) { }
 
-      public:
-        void prototype(utils::kernel_generation_stream & stream) const {
+        std::string init_get_prototype() const {
           std::map<void *, std::size_t> memory;
           std::string prototype;
           profile_.kernel_arguments(statements_, prototype);
@@ -91,15 +90,18 @@ namespace viennacl{
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it)
             detail::traverse(it->array(), detail::map_generate_prototype(memory, mapping_[i++], prototype, current_arg),true);
           prototype.erase(prototype.size()-1); //Last comma pruned
-          stream << prototype << std::endl;
+          return prototype;
         }
+
+      public:
 
         virtual std::vector<std::string> operator()(utils::kernel_generation_stream & stream, unsigned int & kernel_name_offset) const {
           std::vector<std::string> kernel_names;
+          std::string prototype = init_get_prototype();
           for(std::size_t n = 0 ; n < num_kernels_ ; ++n){
             kernel_names.push_back("kernel_" + utils::to_string(kernel_name_offset++));
             stream << "__kernel void " << kernel_names.back() << "(" << std::endl;
-            prototype(stream);
+            stream << prototype << std::endl;
             stream << ")" << std::endl;
 
             //core:
