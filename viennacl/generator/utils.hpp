@@ -35,6 +35,7 @@ namespace viennacl{
 
     namespace utils{
 
+
       template<class Fun>
       typename Fun::result_type call_on_host_scalar(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
         switch(type){
@@ -181,9 +182,14 @@ namespace viennacl{
 
       template<class T>
       struct type_to_string;
-
       template<> struct type_to_string<float> { static const char * value() { return "float"; } };
       template<> struct type_to_string<double> { static const char * value() { return "double"; } };
+
+
+      template<class T>
+      struct first_letter_of_type;
+      template<> struct first_letter_of_type<float> { static char value() { return 'f'; } };
+      template<> struct first_letter_of_type<double> { static char value() { return 'd'; } };
 
       class kernel_generation_stream : public std::ostream{
         private:

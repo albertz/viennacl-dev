@@ -90,19 +90,18 @@ int run_benchmark()
 
   {
     viennacl::generator::code_generator generator;
-    generator.add_statement(viennacl::scheduler::statement(vcl_scal1, viennacl::op_assign(), viennacl::linalg::inner_prod(vcl_vec1, vcl_vec3)));
+    Timer t;
+    t.start();
+    generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), vcl_vec2 + vcl_vec3));
 //    generator.add_statement(viennacl::scheduler::statement(vcl_scal2, viennacl::op_assign(), viennacl::linalg::inner_prod(vcl_vec1, vcl_vec2)));
     std::vector<std::string> kernel_names;
-    std::cout << generator.make_program_string(kernel_names) << std::endl;
+    char* name = (char*)malloc(256*sizeof(char));
+    generator.make_program_name(name);
+    t.start();
+    generator.make_program_name(name);
+    double time = t.get();
+    std::cout <<  "name : " << name << "time : " << time << std::endl;
   }
-
-//  {
-//    viennacl::generator::code_generator generator;
-//    generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat1, vcl_vec3)));
-//    generator.add_statement(viennacl::scheduler::statement(vcl_vec2, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat2, vcl_vec1)));
-//    std::cout << generator.make_program_string() << std::endl;
-//  }
-
 
   return 0;
 }

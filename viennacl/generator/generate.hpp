@@ -29,7 +29,8 @@
 
 #include "viennacl/scheduler/forwards.h"
 
-#include "viennacl/generator/enqueue_tree.hpp"
+#include "viennacl/generator/enqueue_statement.hpp"
+#include "viennacl/generator/statement_representation.hpp"
 
 #include "viennacl/generator/map_generate_prototype.hpp"
 
@@ -89,34 +90,12 @@ namespace viennacl{
 
     class code_generator{
       private:
-        typedef std::list<std::pair<operation_type_family, generator::template_base::statements_type> > statements_type;
+        typedef std::vector<std::pair<operation_type_family, generator::template_base::statements_type> > statements_type;
 
         template<class T>
         static void merge(T & first, T const & second){
           first.insert(first.end(), second.begin(), second.end());
         }
-
-        struct vec_repr{
-            typedef const char * result_type;
-            template<class ScalarType>
-            result_type operator()(vector_base<ScalarType> const & t) const {
-              if(t.start()>0)
-                return "vr";
-              if(t.stride()>0)
-                return "vst";
-              return "v";
-            }
-        };
-
-        struct mat_repr{
-            typedef const char * result_type;
-            template<class ScalarType, class Layout>
-            result_type operator()(matrix_base<ScalarType, Layout> const & t) const {
-              if(t.start1()>0)
-                return "mr";
-              return "m";
-            }
-        };
 
       public:
         code_generator() : vector_saxpy_profile_(1,128,128,true)
@@ -124,7 +103,9 @@ namespace viennacl{
                           , scalar_reduction_profile_(1, 128, 128, true)
                           , vector_reduction_profile_(1, 1, 256, 32)
                           , matrix_product_profile_(1,32,32,32,4,4,4,true,false,1)
-                           { }
+                           {
+          statements_.reserve(16);
+        }
 
         bool add_statement(scheduler::statement const & s) {
           operation_type_family expr_type = type_family_of(s.array());
@@ -160,39 +141,15 @@ namespace viennacl{
           }
         }
 
-        void make_program_name(char *& ptr) const{
+        void make_program_name(char * ptr) const{
+          unsigned int current_arg = 0;
+          void* memory[64] = {NULL};
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             for(std::vector<scheduler::statement>::const_iterator iit = it->second.begin() ; iit != it->second.end() ; ++iit){
-              scheduler::statement::container_type const & expr = iit->array();
-              for(std::size_t j = 0 ; j < expr.size() ; ++j){
-                if(expr[j].lhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY){
-                  strcat(ptr, "_");
-                }
-                else{
-                  if(expr[j].lhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
-                    strcat(ptr, utils::call_on_vector(expr[j].lhs_type_, expr[j].lhs_, vec_repr()));
-                  else if(expr[j].lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY){
-                    strcat(ptr, utils::call_on_matrix(expr[j].lhs_type_, expr[j].lhs_, mat_repr()));
-                  }
-                  strcat(ptr, detail::generate_scalartype(expr[j].lhs_type_));
-                }
-
-                strcat(ptr, detail::generate(expr[j].op_type_));
-
-                if(expr[j].rhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY){
-                  strcat(ptr, "_");
-                }
-                else{
-                  if(expr[j].rhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
-                    strcat(ptr, utils::call_on_vector(expr[j].rhs_type_, expr[j].rhs_, vec_repr()));
-                  else if(expr[j].rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY){
-                    strcat(ptr, utils::call_on_matrix(expr[j].rhs_type_, expr[j].rhs_, mat_repr()));
-                  }
-                  strcat(ptr, detail::generate_scalartype(expr[j].rhs_type_));
-                }
-              }
+              detail::statement_representation(*iit, memory, current_arg, ptr);
             }
           }
+          *ptr='\0';
         }
 
 

@@ -40,6 +40,7 @@ namespace viennacl{
   namespace generator{
 
     namespace detail{
+
       class map_functor{
           std::string create_name(unsigned int & current_arg, std::map<void *, std::size_t> & memory, void * handle) const{
             if(memory.insert(std::make_pair(handle, current_arg)).second)
@@ -140,6 +141,12 @@ namespace viennacl{
 
             if(node.op_type_==OPERATION_BINARY_INNER_PROD_TYPE){
               mapping.insert(std::make_pair(std::make_pair(i, PARENT_TYPE), map_functor(memory, current_arg).binary_leaf<mapped_scalar_reduction>(i, node, &expr, &mapping)));
+            }
+            else if(node.op_type_==OPERATION_BINARY_MAT_VEC_PROD_TYPE){
+              mapping.insert(std::make_pair(std::make_pair(i, PARENT_TYPE), map_functor(memory, current_arg).binary_leaf<mapped_vector_reduction>(i, node, &expr, &mapping)));
+            }
+            else if(node.op_type_==OPERATION_BINARY_MAT_MAT_PROD_TYPE){
+              mapping.insert(std::make_pair(std::make_pair(i, PARENT_TYPE), map_functor(memory, current_arg).binary_leaf<mapped_matrix_product>(i, node, &expr, &mapping)));
             }
 
             if(node.rhs_type_family_!=COMPOSITE_OPERATION_FAMILY)
