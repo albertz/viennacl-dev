@@ -51,7 +51,21 @@ namespace viennacl{
         public:
           map_functor(std::map<void *, std::size_t> & memory, unsigned int & current_arg) : memory_(memory), current_arg_(current_arg){ }
 
-          //Binary lea
+          //Binary leaf
+          template<class T>
+          result_type binary_leaf(unsigned int i, statement_node const & node,  statement::container_type const * array){
+            T * p = new T("float");
+            p->lhs_.array_ = &expr;
+            p->lhs_.index_ = get_new_key(node.lhs_type_family_, i, node.lhs_.node_index_, LHS_NODE_TYPE);
+            p->lhs_.mapping_ = &mapping_;
+
+            p->rhs_.array_ = array;
+            p->rhs_.index_ = get_new_key(node.rhs_type_family_, i, node.rhs_.node_index_, RHS_NODE_TYPE);
+            p->rhs_.mapping_ = &mapping_;
+
+            return p;
+          }
+
           //Scalar mapping
           template<class T>
           result_type operator()(scalar<ScalarType> * scal){
@@ -86,15 +100,7 @@ namespace viennacl{
               mapping.insert(std::make_pair(std::make_pair(i, LHS_NODE_TYPE), utils::call_on_element(node.lhs_type_family_, node.lhs_type_, node.lhs_, map_functor(memory, current_arg))));
 
             if(node.op_type_==OPERATION_BINARY_INNER_PROD_TYPE){
-              mapped_scalar_reduction * p = new mapped_scalar_reduction("float");
-              p->lhs_.array_ = &expr;
-              p->lhs_.index_ = get_new_key(node.lhs_type_family_, i, node.lhs_.node_index_, LHS_NODE_TYPE);
-              p->lhs_.mapping_ = &mapping_;
-
-              p->rhs_.array_ = array;
-              p->rhs_.index_ = get_new_key(node.rhs_type_family_, i, node.rhs_.node_index_, RHS_NODE_TYPE);
-              p->rhs_.mapping_ = &mapping_;
-              mapping_.insert(std::make_pair(std::make_pair(i, PARENT_TYPE), tools::shared_ptr<mapped_container>(p)));
+              mapping.insert(std::make_pair(std::make_pair(i, PARENT_TYPE), map_functor(memory, current_arg).template binary_leaf<mapped_scalar_reduction>(i, node, &expr)));
             }
 
             if(node.rhs_type_family_!=COMPOSITE_OPERATION_FAMILY)
