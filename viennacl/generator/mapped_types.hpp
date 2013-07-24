@@ -58,7 +58,7 @@ namespace viennacl{
             else
               return generate_default(index);
           }
-          virtual std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{ }
+          virtual std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{ return str; }
           virtual ~mapped_container(){ }
         protected:
           std::string access_name_;
@@ -262,7 +262,8 @@ namespace viennacl{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
             if(!index_name_.empty())
-              str_ += detail::generate_value_kernel_argument("unsigned int", index_name_);
+              str += detail::generate_value_kernel_argument("unsigned int", index_name_);
+            return str;
           }
       };
 
@@ -279,6 +280,7 @@ namespace viennacl{
           std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
+            return str;
           }
       };
 

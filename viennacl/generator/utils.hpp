@@ -77,7 +77,7 @@ namespace viennacl{
           case scheduler::SYMBOLIC_VECTOR_FLOAT_TYPE :
             return fun(*element.symbolic_vector_float_);
           case scheduler::SYMBOLIC_VECTOR_DOUBLE_TYPE :
-            return fun(element.symbolic_vector_double_);
+            return fun(*element.symbolic_vector_double_);
           default :
             throw "not implemented";
         }
@@ -107,7 +107,7 @@ namespace viennacl{
           case scheduler::SYMBOLIC_MATRIX_FLOAT_TYPE :
             return fun(*element.symbolic_matrix_float_);
           case scheduler::SYMBOLIC_MATRIX_DOUBLE_TYPE :
-            return fun(element.symbolic_matrix_double_);
+            return fun(*element.symbolic_matrix_double_);
           default :
             throw "not implemented";
         }
@@ -130,6 +130,8 @@ namespace viennacl{
             return call_on_matrix(type,element,fun);
           case scheduler::SYMBOLIC_MATRIX_TYPE_FAMILY :
             return call_on_symbolic_matrix(type, element, fun);
+          default:
+            throw "not implemented";
         }
       }
 
@@ -181,6 +183,7 @@ namespace viennacl{
       struct type_to_string;
 
       template<> struct type_to_string<float> { static const char * value() { return "float"; } };
+      template<> struct type_to_string<double> { static const char * value() { return "double"; } };
 
       class kernel_generation_stream : public std::ostream{
         private:

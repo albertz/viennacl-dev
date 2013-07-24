@@ -87,13 +87,15 @@ namespace viennacl{
         template_base(statements_type const & s, std::size_t num_kernels, profile const & p) : statements_(s), num_kernels_(num_kernels), mapping_(s.size()), profile_(p) { }
 
         std::string init_get_prototype() const {
-          std::map<void *, std::size_t> memory;
           std::string prototype;
+          std::set<std::string> already_generated;
           profile_.kernel_arguments(statements_, prototype);
-          std::size_t current_arg = 0;
-          std::size_t i = 0;
-          for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it)
-            detail::traverse(it->array(), detail::map_generate_prototype(memory, mapping_[i++], prototype, current_arg),true);
+          detail::map_all_statements(statements_.begin(), statements_.end(), mapping_);
+          for(std::size_t i = 0 ; i < mapping_.size() ; ++i){
+            for(detail::mapping_type::iterator it = mapping_[i].begin() ; it != mapping_[i].end() ; ++it){
+              it->second->append_kernel_arguments(already_generated, prototype);
+            }
+          }
           prototype.erase(prototype.size()-1); //Last comma pruned
           return prototype;
         }
