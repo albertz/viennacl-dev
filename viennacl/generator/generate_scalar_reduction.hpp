@@ -54,8 +54,11 @@ namespace viennacl{
           public:
             /** @brief The user constructor */
             profile(unsigned int vectorization, unsigned int group_size, unsigned int num_groups, bool global_decomposition) : template_base::profile(vectorization, 2), group_size_(group_size), num_groups_(num_groups), global_decomposition_(global_decomposition){ }
-            void set_local_sizes(std::size_t& s1, std::size_t& s2) const{
-              s1 = group_size_;
+            void set_local_sizes(std::size_t& s1, std::size_t& s2, std::size_t kernel_id) const{
+              if(kernel_id==0)
+                s1 = group_size_;
+              else
+                s1 = num_groups_;
               s2 = 1;
             }
 
@@ -63,18 +66,14 @@ namespace viennacl{
 
               //configure ND range
               if(kernel_id==0){
-                std::size_t lsize1, lsize2;
-                set_local_sizes(lsize1,lsize2);
-                k.local_work_size(0,lsize1);
-                k.local_work_size(1,lsize2);
+                configure_local_sizes(k, 0);
 
-                std::size_t gsize = lsize1*num_groups_;
+                std::size_t gsize = group_size_*num_groups_;
                 k.global_work_size(0,gsize);
                 k.global_work_size(1,1);
               }
               else{
-                k.local_work_size(0,num_groups_);
-                k.local_work_size(1,1);
+                configure_local_sizes(k, 1);
 
                 k.global_work_size(0,num_groups_);
                 k.global_work_size(1,1);

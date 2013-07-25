@@ -68,51 +68,57 @@ namespace viennacl{
 
 
 
-            void set_local_sizes(std::size_t& s1, std::size_t& s2) const{
-              s1 = ml_/ms_;
-              s2 = nl_/ns_;
+            void set_local_sizes(std::size_t & size1, std::size_t & size2, std::size_t kernel_id) const{
+              size1 = ml_/ms_;
+              size2 = nl_/ns_;
             }
 
             void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const {
               //set M, N
               scheduler::statement_node first_node = statements.front().array()[0];
-              k.arg(n_arg++, cl_uint(utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size1_fun())));
-              k.arg(n_arg++, cl_uint(utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size2_fun())));
+              unsigned int M = utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size1_fun());
+              unsigned int N = utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size2_fun());
 
-              //set K
+              //set ND range
+              configure_local_sizes(k, kernel_id);
+              k.global_work_size(0, M/ms_);
+              k.global_work_size(1, N/ns_);
+
+              //set arguments
+              //M,N
+              k.arg(n_arg++, cl_uint(M));
+              k.arg(n_arg++, cl_uint(N));
+
+              //K
               for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
                 scheduler::statement::container_type exprs = it->array();
                 for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit){
                   if(iit->op_type_==scheduler::OPERATION_BINARY_MAT_MAT_PROD_TYPE){
                     scheduler::statement_node const * current_node = &(*iit);
-
                     //The LHS of the prod is a matrix
                     if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
                        ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
                     {
                       k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
-                      return;
-                    }
-
-                    //The LHS of the prod is a matrix expression
-                    current_node = &exprs[current_node->lhs_.node_index_];
-                    if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
-                       ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
-                    {
-                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
-                      return;
-                    }
-                    else if(current_node->rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
-                            ||current_node->rhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
-                    {
-                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
-                      return;
                     }
                     else{
-                      assert(false && bool("unexpected expression tree"));
+                      //The LHS of the prod is a matrix expression
+                      current_node = &exprs[current_node->lhs_.node_index_];
+                      if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                         ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                      {
+                        k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
+                      }
+                      else if(current_node->rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                              ||current_node->rhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                      {
+                        k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
+                      }
+                      else{
+                        assert(false && bool("unexpected expression tree"));
+                      }
                     }
-
-
+                    return;
                   }
                 }
               }

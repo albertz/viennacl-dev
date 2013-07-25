@@ -53,46 +53,54 @@ namespace viennacl{
           public:
             /** @brief The user constructor */
             profile(unsigned int vectorization, unsigned int m, unsigned int k, unsigned int num_groups) : template_base::profile(vectorization, 1), m_(m), k_(k), num_groups_(num_groups){ }
-            void set_local_sizes(std::size_t& s1, std::size_t& s2) const{
+
+            void set_local_sizes(std::size_t & s1, std::size_t & s2, std::size_t kernel_id) const{
               s1 = m_;
               s2 = k_;
             }
 
-            void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
+            void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & kernel, unsigned int & n_arg)  const{
+
+              configure_local_sizes(kernel, kernel_id);
+              kernel.global_work_size(0,m_*num_groups_);
+              kernel.global_work_size(1,k_);
+
+
               for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
                 scheduler::statement::container_type exprs = it->array();
                 for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit){
                   if(iit->op_type_==scheduler::OPERATION_BINARY_MAT_VEC_PROD_TYPE){
                     scheduler::statement_node const * current_node = &(*iit);
-
                     //The LHS of the prod is a matrix
                     if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
                        ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
                     {
-                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size1_fun())));
-                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
-                      return;
-                    }
-
-                    //The LHS of the prod is a matrix expression
-                    current_node = &exprs[current_node->lhs_.node_index_];
-                    if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
-                       ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
-                    {
-                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size1_fun())));
-                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
-                      return;
-                    }
-                    else if(current_node->rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
-                            ||current_node->rhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
-                    {
-                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size1_fun())));
-                      k.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
+                      kernel.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size1_fun())));
+                      kernel.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
                       return;
                     }
                     else{
-                      assert(false && bool("unexpected expression tree"));
+                      //The LHS of the prod is a matrix expression
+                      current_node = &exprs[current_node->lhs_.node_index_];
+                      if(current_node->lhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                         ||current_node->lhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                      {
+                        kernel.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size1_fun())));
+                        kernel.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
+                        return;
+                      }
+                      else if(current_node->rhs_type_family_==scheduler::MATRIX_ROW_TYPE_FAMILY
+                              ||current_node->rhs_type_family_==scheduler::MATRIX_COL_TYPE_FAMILY)
+                      {
+                        kernel.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size1_fun())));
+                        kernel.arg(n_arg++, cl_uint(utils::call_on_matrix(current_node->lhs_type_, current_node->lhs_, utils::size2_fun())));
+                        return;
+                      }
+                      else{
+                        assert(false && bool("unexpected expression tree"));
+                      }
                     }
+                    return;
                   }
                 }
               }
@@ -127,7 +135,7 @@ namespace viennacl{
 
           detail::mapped_vector_reduction* first_expr = exprs.front();
           for(std::vector<detail::mapped_vector_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
-            stream << "__local " <<  (*it)->scalartype() << " buf" << std::distance(exprs.begin(), it) << '[' << lsize1*lsize2 << ']' << std::endl;
+            stream << "__local " <<  (*it)->scalartype() << " buf" << std::distance(exprs.begin(), it) << '[' << lsize1*lsize2 << "];" << std::endl;
           }
 
           stream << "unsigned int lid0 = get_local_id(0);" << std::endl;
@@ -164,14 +172,16 @@ namespace viennacl{
             detail::traverse(*exprs[k]->lhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
             expr_str += "*";
             detail::traverse(*exprs[k]->rhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
-            stream << scalartype << " sum" << k << " += "  << expr_str << ";" << std::endl;
+            stream << " sum" << k << " += "  << expr_str << ";" << std::endl;
           }
 
 
           stream.dec_tab();
           stream << "}" << std::endl;
 
-          stream << "buf[lid0*" << lsize2 << "+ lid1] = sum" << std::endl;
+          for(std::size_t k = 0 ; k < exprs.size() ; ++k){
+            stream << "buf" << k << "[lid0*" << lsize2 << "+ lid1] = sum" << k << ";" << std::endl;
+          }
 
           for(unsigned int stride = profile_.k_/2 ; stride>1 ; stride /=2){
             stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
@@ -200,11 +210,14 @@ namespace viennacl{
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             std::string str;
             detail::traverse(it->array(), detail::expression_generation_traversal("r", str, mapping_[i++]), false);
-            stream << str << std::endl;
+            stream << str << ";" << std::endl;
           }
           stream.dec_tab();
           stream << "}" << std::endl;
 
+
+          stream.dec_tab();
+          stream << "}" << std::endl;
 
         }
 

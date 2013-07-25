@@ -44,17 +44,16 @@ namespace viennacl{
         class profile : public template_base::profile{
           public:
             profile(unsigned int v, std::size_t gs, std::size_t ng, bool d) : template_base::profile(v, 1), group_size_(gs), num_groups_(ng), global_decomposition_(d){ }
-            void set_local_sizes(std::size_t & size1, std::size_t & size2) const{
+
+            void set_local_sizes(std::size_t & size1, std::size_t & size2, std::size_t kernel_id) const{
               size1 = group_size_;
               size2 = 1;
             }
-            void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
-              std::size_t lsize1, lsize2;
-              set_local_sizes(lsize1,lsize2);
-              k.local_work_size(0,lsize1);
-              k.local_work_size(1,lsize2);
 
-              std::size_t gsize1 = lsize1*num_groups_;
+            void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
+              configure_local_sizes(k, kernel_id);
+
+              std::size_t gsize1 = group_size_*num_groups_;
               std::size_t gsize2 = 1;
               k.global_work_size(0,gsize1);
               k.global_work_size(1,gsize2);
@@ -66,6 +65,7 @@ namespace viennacl{
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
             }
+
           private:
             std::size_t group_size_;
             std::size_t num_groups_;
@@ -114,15 +114,18 @@ namespace viennacl{
         class profile : public template_base::profile{
           public:
             profile(unsigned int v, std::size_t gs1, std::size_t gs2, std::size_t ng1, std::size_t ng2, bool d) : template_base::profile(v, 1), group_size1_(gs1), group_size2_(gs2), num_groups1_(ng1), num_groups2_(ng2), global_decomposition_(d){ }
-            void set_local_sizes(std::size_t & x, std::size_t & y) const{
-              x = group_size1_;
-              y = group_size2_;
+
+            void set_local_sizes(std::size_t & s1, std::size_t & s2, std::size_t kernel_id) const{
+              s1 = group_size1_;
+              s2 = group_size2_;
             }
+
             void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
               scheduler::statement_node first_node = statements.front().array()[0];
               k.arg(n_arg++, cl_uint(utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size1_fun())));
               k.arg(n_arg++, cl_uint(utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size2_fun())));
             }
+
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
               arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");

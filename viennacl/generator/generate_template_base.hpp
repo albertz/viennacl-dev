@@ -47,7 +47,16 @@ namespace viennacl{
         class profile{
           protected:
             virtual bool invalid_impl(viennacl::ocl::device const & dev, size_t scalartype_size) const{ return false; }
+
             virtual std::size_t lmem_used(std::size_t scalartype_size) const { return 0; }
+
+            void configure_local_sizes(viennacl::ocl::kernel & k, std::size_t kernel_id) const {
+              std::size_t lsize1, lsize2;
+              set_local_sizes(lsize1,lsize2, kernel_id);
+              k.local_work_size(0,lsize1);
+              k.local_work_size(1,lsize2);
+            }
+
 
           public:
             profile(unsigned int vectorization, std::size_t num_kernels) : vectorization_(vectorization), num_kernels_(num_kernels){ }
@@ -55,14 +64,14 @@ namespace viennacl{
             virtual void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg) const = 0;
 
             virtual void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const = 0;
-            virtual void set_local_sizes(std::size_t & size1, std::size_t & size2) const = 0;
+            virtual void set_local_sizes(std::size_t & x, std::size_t & y, std::size_t kernel_id) const = 0;
 
             /** @brief returns whether or not the profile leads to undefined behavior on particular device
          *  @param dev the given device*/
             bool is_invalid(viennacl::ocl::device const & dev, size_t scalartype_size) const{
               //Query profile informations
               std::size_t size1, size2;
-              set_local_sizes(size1, size2);
+              set_local_sizes(size1, size2, 0);
 
               //Query device informations
               size_t lmem_available = dev.local_mem_size();
