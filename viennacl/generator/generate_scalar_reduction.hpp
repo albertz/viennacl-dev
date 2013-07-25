@@ -39,6 +39,8 @@ namespace viennacl{
 
   namespace generator{
 
+    static std::vector< viennacl::vector<float> > scalar_reduction_temporaries = std::vector< viennacl::vector<float> >(8);
+
     class scalar_reduction : public template_base{
         typedef template_base base_type;
       public:
@@ -58,14 +60,67 @@ namespace viennacl{
             }
 
             void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
-              scheduler::statement_node first_node = statements.front().array()[0];
-              k.arg(n_arg++, cl_uint(utils::call_on_vector(first_node.lhs_type_, first_node.lhs_, utils::size_fun())));
-//              for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
-//                scheduler::statement::container_type exprs = it->array();
-//                for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit)
-//                  if(iit->op_type_==scheduler::OPERATION_BINARY_INNER_PROD_TYPE)
-//                    k.arg(n_arg++,NULL);
-//              }
+
+              //configure ND range
+              if(kernel_id==0){
+                std::size_t lsize1, lsize2;
+                set_local_sizes(lsize1,lsize2);
+                k.local_work_size(0,lsize1);
+                k.local_work_size(1,lsize2);
+
+                std::size_t gsize = lsize1*num_groups_;
+                k.global_work_size(0,gsize);
+                k.global_work_size(1,1);
+              }
+              else{
+                k.local_work_size(0,num_groups_);
+                k.local_work_size(1,1);
+
+                k.global_work_size(0,num_groups_);
+                k.global_work_size(1,1);
+              }
+
+              //set arguments
+                unsigned int n_scalar_reductions=0;
+                for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
+                  scheduler::statement::container_type exprs = it->array();
+                  for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit){
+                    if(iit->op_type_==scheduler::OPERATION_BINARY_INNER_PROD_TYPE){
+
+                      //set size argument
+                      if(n_scalar_reductions==0){
+                        scheduler::statement_node const * current_node = &(*iit);
+
+                        //The LHS of the prod is a vector
+                        if(current_node->lhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
+                        {
+                          k.arg(n_arg, cl_uint(utils::call_on_vector(current_node->lhs_type_, current_node->lhs_, utils::size_fun())));
+                        }
+                        else{
+                          //The LHS of the prod is a vector expression
+                          current_node = &exprs[current_node->lhs_.node_index_];
+                          if(current_node->lhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
+                          {
+                            k.arg(n_arg, cl_uint(utils::call_on_vector(current_node->lhs_type_, current_node->lhs_, utils::size_fun())));
+                          }
+                          else if(current_node->rhs_type_family_==scheduler::VECTOR_TYPE_FAMILY)
+                          {
+                            k.arg(n_arg, cl_uint(utils::call_on_vector(current_node->lhs_type_, current_node->lhs_, utils::size_fun())));
+                          }
+                          else{
+                            assert(false && bool("unexpected expression tree"));
+                          }
+                        }
+                        ++n_arg;
+                      }
+
+                      //set temporary buffer argument
+                      scalar_reduction_temporaries[n_scalar_reductions].resize(num_groups_);
+                      k.arg(n_arg++,scalar_reduction_temporaries[n_scalar_reductions]);
+                      ++n_scalar_reductions;
+                    }
+                  }
+                }
             }
 
             void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
@@ -120,7 +175,7 @@ namespace viennacl{
             detail::traverse(*exprs[k]->lhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
             expr_str += "*";
             detail::traverse(*exprs[k]->rhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
-            stream << scalartype << " sum" << k << " += "  << expr_str << ";" << std::endl;
+            stream << " sum" << k << " += "  << expr_str << ";" << std::endl;
           }
 
           stream.dec_tab();

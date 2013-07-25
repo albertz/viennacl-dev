@@ -58,7 +58,7 @@ namespace viennacl{
             else
               return generate_default(index);
           }
-          virtual std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{ return str; }
+          virtual std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{ return str; }
           virtual ~mapped_container(){ }
         protected:
           std::string access_name_;
@@ -109,7 +109,7 @@ namespace viennacl{
         public:
           mapped_host_scalar(std::string const & scalartype) : mapped_container(scalartype){ }
           std::string const & name() { return name_; }
-          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{
             if(already_generated.insert(name_).second)
               str += detail::generate_value_kernel_argument(scalartype_, name_);
             return str;
@@ -147,7 +147,7 @@ namespace viennacl{
             }
           }
 
-          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{
             if(already_generated.insert(name_).second){
               str += detail::generate_pointer_kernel_argument("__global", scalartype_, name_);
               append_optional_arguments(str);
@@ -258,7 +258,7 @@ namespace viennacl{
           std::string generate_default(std::string const & index) const{
             return value_name_;
           }
-          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
             if(!index_name_.empty())
@@ -277,7 +277,7 @@ namespace viennacl{
           std::string generate_default(std::string const & index) const{
             return value_name_;
           }
-          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
             return str;

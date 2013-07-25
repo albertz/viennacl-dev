@@ -49,8 +49,11 @@ using std::endl;
 #define BENCHMARK_RUNS          1000
 
 void execute_generator(viennacl::generator::code_generator const & generator){
+  Timer t;
+  t.start();
   char* program_name = (char*)malloc(256*sizeof(char));
   generator.make_program_name(program_name);
+  t.start();
   if(!viennacl::ocl::current_context().has_program(program_name)){
     std::string source_code = generator.make_program_string();
 #ifdef VIENNACL_DEBUG_BUILD
@@ -60,8 +63,11 @@ void execute_generator(viennacl::generator::code_generator const & generator){
     viennacl::ocl::current_context().add_program(source_code, program_name);
   }
   viennacl::ocl::program & p = viennacl::ocl::current_context().get_program(program_name);
+  t.start();
   std::list<viennacl::ocl::kernel*> kernels;
   generator.configure_program(p, kernels);
+  double overhead = t.get();
+  std::cout << "overhead : " << overhead << std::endl;
   for(std::list<viennacl::ocl::kernel*>::iterator it = kernels.begin() ; it != kernels.end() ; ++it){
     viennacl::ocl::enqueue(**it);
   }
@@ -109,11 +115,14 @@ int run_benchmark()
 
   {
     viennacl::generator::code_generator generator;
-    generator.add_statement(viennacl::scheduler::statement(vcl_vec3, viennacl::op_assign(), vcl_vec1 + vcl_vec2));
+    generator.add_statement(viennacl::scheduler::statement(vcl_scal1, viennacl::op_assign(), viennacl::linalg::inner_prod(vcl_vec1, vcl_vec2)));
+    generator.add_statement(viennacl::scheduler::statement(vcl_scal2, viennacl::op_assign(), viennacl::linalg::inner_prod(vcl_vec1, vcl_vec3)));
+
+//    generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), vcl_vec1 + vcl_vec2));
+//    generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), vcl_vec1 + vcl_vec3));
+
     execute_generator(generator);
-    std::cout << vcl_vec1 << std::endl;
-    std::cout << vcl_vec2 << std::endl;
-    std::cout << vcl_vec3 << std::endl;
+    execute_generator(generator);
   }
 
   return 0;

@@ -176,7 +176,7 @@ namespace viennacl{
 
         void make_program_name(char * program_name) const {
           unsigned int current_arg = 0;
-          std::map<void*, unsigned int> memory;
+          void* memory[64] = {NULL};
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             for(std::vector<scheduler::statement>::const_iterator iit = it->second.begin() ; iit != it->second.end() ; ++iit){
               detail::statement_representation(*iit, memory, current_arg, program_name);
