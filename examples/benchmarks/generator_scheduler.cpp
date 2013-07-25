@@ -117,7 +117,7 @@ int run_benchmark()
 
   {
     viennacl::generator::code_generator generator;
-    generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat1, vcl_vec2)));
+    generator.add_statement(viennacl::scheduler::statement(vcl_mat1, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat2, vcl_mat3)));
 //    generator.add_statement(viennacl::scheduler::statement(vcl_vec2, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat1, vcl_vec3)));
 
 //    generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), vcl_vec1 + vcl_vec2));

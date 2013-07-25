@@ -58,7 +58,7 @@ namespace viennacl{
             else
               return generate_default(index);
           }
-          virtual std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{ return str; }
+          virtual std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{ return str; }
           virtual ~mapped_container(){ }
         protected:
           std::string access_name_;
@@ -109,7 +109,7 @@ namespace viennacl{
         public:
           mapped_host_scalar(std::string const & scalartype) : mapped_container(scalartype){ }
           std::string const & name() { return name_; }
-          std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
             if(already_generated.insert(name_).second)
               str += detail::generate_value_kernel_argument(scalartype_, name_);
             return str;
@@ -147,7 +147,7 @@ namespace viennacl{
             }
           }
 
-          std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
             if(already_generated.insert(name_).second){
               str += detail::generate_pointer_kernel_argument("__global", scalartype_, name_);
               append_optional_arguments(str);
@@ -220,6 +220,10 @@ namespace viennacl{
           bool is_transposed() const { return is_transposed_; }
           std::string const & size1() const { return size1_; }
           std::string const & size2() const { return size2_; }
+          void bind_sizes(std::string const & size1, std::string const & size2) const{
+            size1_ = size1;
+            size2_ = size2;
+          }
           std::string offset(std::string const & i, std::string const & j) const{
             if(is_row_major_)
               if(j=="0")
@@ -234,8 +238,8 @@ namespace viennacl{
           }
           mapped_matrix(std::string const & scalartype) : mapped_handle(scalartype){ }
         private:
-          std::string size1_;
-          std::string size2_;
+          mutable std::string size1_;
+          mutable std::string size2_;
 
           std::string start1_name_;
           std::string stride1_name_;
@@ -258,7 +262,7 @@ namespace viennacl{
           std::string generate_default(std::string const & index) const{
             return value_name_;
           }
-          std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
             if(!index_name_.empty())
@@ -277,7 +281,7 @@ namespace viennacl{
           std::string generate_default(std::string const & index) const{
             return value_name_;
           }
-          std::string & append_kernel_arguments(std::set<std::string>& already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
             return str;
