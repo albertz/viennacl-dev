@@ -58,7 +58,7 @@ namespace viennacl{
             profile(unsigned int vectorization, unsigned int ml, unsigned int kl, unsigned int nl
                     , unsigned int ms, unsigned int ks, unsigned int ns
                     , bool use_LHS_shared, bool use_RHS_shared
-                    , unsigned int unroll) : template_base::profile(vectorization){
+                    , unsigned int unroll) : template_base::profile(vectorization,1){
               ml_= ml; kl_=kl ; nl_=nl;
               ms_ = ms; ks_=ks; ns_=ns;
               use_LHS_shared_ = use_LHS_shared ; use_RHS_shared_ = use_RHS_shared;
@@ -73,7 +73,7 @@ namespace viennacl{
               s2 = nl_/ns_;
             }
 
-            virtual void enqueue_kernel_arguments_impl(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const {
+            void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const {
               //set M, N
               scheduler::statement_node first_node = statements.front().array()[0];
               k.arg(n_arg++, cl_uint(utils::call_on_matrix(first_node.lhs_type_, first_node.lhs_, utils::size1_fun())));
@@ -317,7 +317,7 @@ namespace viennacl{
 
 
       public:
-        matrix_product(template_base::statements_type const & s, profile const & p) : template_base(s, 1, profile_), profile_(p){ }
+        matrix_product(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
 
         void core(std::size_t idx, utils::kernel_generation_stream& stream) const{
 

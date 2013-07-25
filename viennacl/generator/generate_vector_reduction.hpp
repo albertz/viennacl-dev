@@ -52,13 +52,13 @@ namespace viennacl{
 
           public:
             /** @brief The user constructor */
-            profile(unsigned int vectorization, unsigned int m, unsigned int k, unsigned int num_groups) : template_base::profile(vectorization), m_(m), k_(k), num_groups_(num_groups){ }
+            profile(unsigned int vectorization, unsigned int m, unsigned int k, unsigned int num_groups) : template_base::profile(vectorization, 1), m_(m), k_(k), num_groups_(num_groups){ }
             void set_local_sizes(std::size_t& s1, std::size_t& s2) const{
               s1 = m_;
               s2 = k_;
             }
 
-            virtual void enqueue_kernel_arguments_impl(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
+            void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
               for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
                 scheduler::statement::container_type exprs = it->array();
                 for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit){
@@ -109,7 +109,7 @@ namespace viennacl{
         };
 
       public:
-        vector_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, 1, profile_), profile_(p){ }
+        vector_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
 
         void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const{
 

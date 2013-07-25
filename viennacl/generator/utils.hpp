@@ -35,7 +35,6 @@ namespace viennacl{
 
     namespace utils{
 
-
       template<class Fun>
       typename Fun::result_type call_on_host_scalar(scheduler::statement_node_type type, scheduler::lhs_rhs_element element, Fun const & fun){
         switch(type){

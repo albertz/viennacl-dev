@@ -51,13 +51,13 @@ namespace viennacl{
             }
           public:
             /** @brief The user constructor */
-            profile(unsigned int vectorization, unsigned int group_size, unsigned int num_groups, bool global_decomposition) : template_base::profile(vectorization), group_size_(group_size), num_groups_(num_groups), global_decomposition_(global_decomposition){ }
+            profile(unsigned int vectorization, unsigned int group_size, unsigned int num_groups, bool global_decomposition) : template_base::profile(vectorization, 2), group_size_(group_size), num_groups_(num_groups), global_decomposition_(global_decomposition){ }
             void set_local_sizes(std::size_t& s1, std::size_t& s2) const{
               s1 = group_size_;
               s2 = 1;
             }
 
-            virtual void enqueue_kernel_arguments_impl(statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
+            void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg)  const{
               scheduler::statement_node first_node = statements.front().array()[0];
               k.arg(n_arg++, cl_uint(utils::call_on_vector(first_node.lhs_type_, first_node.lhs_, utils::size_fun())));
 //              for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
@@ -200,7 +200,7 @@ namespace viennacl{
         }
 
       public:
-        scalar_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, 2, profile_), profile_(p){
+        scalar_reduction(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){
 
         }
 

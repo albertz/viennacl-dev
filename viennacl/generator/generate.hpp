@@ -45,7 +45,7 @@ namespace viennacl{
 
     using namespace scheduler;
 
-    enum operation_type_family{
+    enum expression_type_family{
       SCALAR_SAXPY,
       VECTOR_SAXPY,
       MATRIX_SAXPY,
@@ -61,7 +61,7 @@ namespace viennacl{
       return res;
     }
 
-    operation_type_family type_family_of(typename statement::container_type const & expr){
+    expression_type_family type_family_of(typename statement::container_type const & expr){
       switch(expr[0].lhs_type_family_){
         case VECTOR_TYPE_FAMILY :
           if(count(expr, OPERATION_BINARY_MAT_VEC_PROD_TYPE))
@@ -90,11 +90,40 @@ namespace viennacl{
 
     class code_generator{
       private:
-        typedef std::vector<std::pair<operation_type_family, generator::template_base::statements_type> > statements_type;
+        typedef std::pair<expression_type_family, generator::template_base::statements_type> representation_node_type;
+        typedef std::vector<representation_node_type> statements_type;
 
         template<class T>
         static void merge(T & first, T const & second){
           first.insert(first.end(), second.begin(), second.end());
+        }
+
+        static void add_kernel_name(int id, std::vector<const char *> & vec_ref){
+
+        }
+
+        template<class T, class StatementsType>
+        void enqueue_expression(T const & profile, StatementsType const & statements, unsigned int & kernel_id, viennacl::ocl::program & p, std::list<viennacl::ocl::kernel *> & kernels) const {
+          for(std::size_t i = 0 ; i < profile.num_kernels() ; ++i){
+            //add kernel name
+            char str[10];
+            std::sprintf(str,"kernel_%d",kernel_id);
+            viennacl::ocl::kernel & k = p.get_kernel(str);
+            kernels.push_back(&k);
+
+            unsigned int current_arg = 0;
+
+            //Configure ND Range and enqueue arguments
+            profile.configure_range_enqueue_arguments(i, statements, k, current_arg);
+
+            std::set<void *> memory;
+            for(typename StatementsType::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
+              detail::enqueue_statement(*it, memory, current_arg, k);
+            }
+
+
+            ++kernel_id;
+          }
         }
 
       public:
@@ -108,7 +137,7 @@ namespace viennacl{
         }
 
         bool add_statement(scheduler::statement const & s) {
-          operation_type_family expr_type = type_family_of(s.array());
+          expression_type_family expr_type = type_family_of(s.array());
           if(statements_.empty())
             statements_.push_back(std::make_pair(expr_type,template_base::statements_type(1,s)));
           else
@@ -119,43 +148,46 @@ namespace viennacl{
           return true;
         }
 
-        void configure_program(viennacl::ocl::program & p){
+        void configure_program(viennacl::ocl::program & p, std::list<viennacl::ocl::kernel *> & kernels) const {
           unsigned int kernel_id = 0;
-          const char * kernel_prefix = "kernel_";
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             switch(it->first){
               case VECTOR_SAXPY:
-                vector_saxpy_profile_.enqueue_kernel_arguments(it->second,p.get_kernel(kernel_prefix+utils::to_string(kernel_id++)));
+                enqueue_expression(vector_saxpy_profile_, it->second, kernel_id, p, kernels);
                 break;
               case MATRIX_SAXPY:
+                enqueue_expression(matrix_saxpy_profile_, it->second, kernel_id, p, kernels);
                 break;
               case SCALAR_REDUCE:
+                enqueue_expression(scalar_reduction_profile_, it->second, kernel_id, p, kernels);
                 break;
               case VECTOR_REDUCE:
+                enqueue_expression(vector_reduction_profile_, it->second, kernel_id, p, kernels);
                 break;
               case MATRIX_PRODUCT:
+                enqueue_expression(matrix_product_profile_, it->second, kernel_id, p, kernels);
                 break;
               default:
                 break;
             }
+
           }
         }
 
-        void make_program_name(char * ptr) const{
+        void make_program_name(char * program_name) const {
           unsigned int current_arg = 0;
-          void* memory[64] = {NULL};
+          std::map<void*, unsigned int> memory;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             for(std::vector<scheduler::statement>::const_iterator iit = it->second.begin() ; iit != it->second.end() ; ++iit){
-              detail::statement_representation(*iit, memory, current_arg, ptr);
+              detail::statement_representation(*iit, memory, current_arg, program_name);
             }
           }
-          *ptr='\0';
+          *program_name='\0';
         }
 
 
 
-        std::string make_program_string(std::vector<std::string> & kernels_name){
-          unsigned int kernel_name_offset = 0;
+        std::string make_program_string() const {
           utils::kernel_generation_stream stream;
 
           //Headers generation
@@ -166,22 +198,22 @@ namespace viennacl{
           stream <<  "#endif\n";
           stream << std::endl;
 
-          for(statements_type::iterator it = statements_.begin() ; it != statements_.end() ; ++it){
+          for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             switch(it->first){
               case VECTOR_SAXPY:
-                merge(kernels_name, vector_saxpy(it->second, vector_saxpy_profile_)(stream, kernel_name_offset));
+                vector_saxpy(it->second, vector_saxpy_profile_)(stream);
                 break;
               case MATRIX_SAXPY:
-                merge(kernels_name, matrix_saxpy(it->second, matrix_saxpy_profile_)(stream, kernel_name_offset));
+                matrix_saxpy(it->second, matrix_saxpy_profile_)(stream);
                 break;
               case SCALAR_REDUCE:
-                merge(kernels_name, scalar_reduction(it->second, scalar_reduction_profile_)(stream, kernel_name_offset));
+                scalar_reduction(it->second, scalar_reduction_profile_)(stream);
                 break;
               case VECTOR_REDUCE:
-                merge(kernels_name, vector_reduction(it->second, vector_reduction_profile_)(stream, kernel_name_offset));
+                vector_reduction(it->second, vector_reduction_profile_)(stream);
                 break;
               case MATRIX_PRODUCT:
-                merge(kernels_name, matrix_product(it->second,matrix_product_profile_)(stream, kernel_name_offset));
+                matrix_product(it->second,matrix_product_profile_)(stream);
                 break;
               default:
                 break;

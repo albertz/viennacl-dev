@@ -22,7 +22,7 @@
 */
 
 
-//#define VIENNACL_DEBUG_ALL
+#define VIENNACL_DEBUG_ALL
 #ifndef NDEBUG
  #define NDEBUG
 #endif
@@ -48,6 +48,25 @@ using std::endl;
 #define BENCHMARK_VECTOR_SIZE   2
 #define BENCHMARK_RUNS          1000
 
+void execute_generator(viennacl::generator::code_generator const & generator){
+  char* program_name = (char*)malloc(256*sizeof(char));
+  generator.make_program_name(program_name);
+  if(!viennacl::ocl::current_context().has_program(program_name)){
+    std::string source_code = generator.make_program_string();
+#ifdef VIENNACL_DEBUG_BUILD
+    std::cout << "Building " << program_name << "..." << std::endl;
+    std::cout << source_code << std::endl;
+#endif
+    viennacl::ocl::current_context().add_program(source_code, program_name);
+  }
+  viennacl::ocl::program & p = viennacl::ocl::current_context().get_program(program_name);
+  std::list<viennacl::ocl::kernel*> kernels;
+  generator.configure_program(p, kernels);
+  for(std::list<viennacl::ocl::kernel*>::iterator it = kernels.begin() ; it != kernels.end() ; ++it){
+    viennacl::ocl::enqueue(**it);
+  }
+  viennacl::backend::finish();
+}
 
 template<typename ScalarType>
 int run_benchmark()
@@ -90,17 +109,11 @@ int run_benchmark()
 
   {
     viennacl::generator::code_generator generator;
-    Timer t;
-    t.start();
-    generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), vcl_vec2 + vcl_vec3));
-//    generator.add_statement(viennacl::scheduler::statement(vcl_scal2, viennacl::op_assign(), viennacl::linalg::inner_prod(vcl_vec1, vcl_vec2)));
-    std::vector<std::string> kernel_names;
-    char* name = (char*)malloc(256*sizeof(char));
-    generator.make_program_name(name);
-    t.start();
-    generator.make_program_name(name);
-    double time = t.get();
-    std::cout <<  "name : " << name << "time : " << time << std::endl;
+    generator.add_statement(viennacl::scheduler::statement(vcl_vec3, viennacl::op_assign(), vcl_vec1 + vcl_vec2));
+    execute_generator(generator);
+    std::cout << vcl_vec1 << std::endl;
+    std::cout << vcl_vec2 << std::endl;
+    std::cout << vcl_vec3 << std::endl;
   }
 
   return 0;
