@@ -358,7 +358,7 @@ namespace viennacl{
                 }
               }
 
-              kss.dec_tab();
+              kss.tab();
               kss << "}" << std::endl;
               kss.dec_tab();
               kss << "}" << std::endl;

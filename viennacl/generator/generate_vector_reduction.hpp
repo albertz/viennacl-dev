@@ -189,9 +189,8 @@ namespace viennacl{
             stream << "{" << std::endl;
             stream.inc_tab();
 
-            //Compute final expression in final reduction
             for(std::size_t i = 0 ; i < exprs.size() ; ++i)
-              stream << "buf" << i << "[lid0*" << lsize2 << "+ lid1] += buf" << i << "[lid0*" << lsize2 << "+ " << stride << "];" << std::endl;
+              stream << "buf" << i << "[lid0*" << lsize2 << "+ lid1] += buf" << i << "[lid0*" << lsize2 << "+ lid1 + " << stride << "];" << std::endl;
 
             stream.dec_tab();
             stream << "}" << std::endl;

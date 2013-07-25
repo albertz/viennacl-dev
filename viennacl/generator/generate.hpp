@@ -233,10 +233,25 @@ namespace viennacl{
 
     };
 
-
-
+    void enqueue(viennacl::generator::code_generator const & generator){
+      char* program_name = (char*)malloc(256*sizeof(char));
+      generator.make_program_name(program_name);
+      if(!viennacl::ocl::current_context().has_program(program_name)){
+        std::string source_code = generator.make_program_string();
+    #ifdef VIENNACL_DEBUG_BUILD
+        std::cout << "Building " << program_name << "..." << std::endl;
+        std::cout << source_code << std::endl;
+    #endif
+        viennacl::ocl::current_context().add_program(source_code, program_name);
+      }
+      viennacl::ocl::program & p = viennacl::ocl::current_context().get_program(program_name);
+      std::list<viennacl::ocl::kernel*> kernels;
+      generator.configure_program(p, kernels);
+      for(std::list<viennacl::ocl::kernel*>::iterator it = kernels.begin() ; it != kernels.end() ; ++it){
+        viennacl::ocl::enqueue(**it, (*it)->context().get_queue());
+      }
+    }
 
   }
-
 }
 #endif
