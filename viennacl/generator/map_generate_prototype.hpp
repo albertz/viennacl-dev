@@ -108,6 +108,7 @@ namespace viennacl{
           result_type operator()(matrix_base<ScalarType, Layout> const & mat) const {
             mapped_matrix * p = new mapped_matrix(utils::type_to_string<ScalarType>::value());
             p->name_ = create_name(current_arg_, memory_, (void*)&mat);
+            p->is_row_major_ = static_cast<bool>(utils::is_same_type<Layout, viennacl::row_major>::value);
             if(mat.start1() > 0)
               p->start1_name_ = p->name_ +"_start1";
             if(mat.stride1() > 1)

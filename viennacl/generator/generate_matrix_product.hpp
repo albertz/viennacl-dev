@@ -59,6 +59,7 @@ namespace viennacl{
                     , unsigned int ms, unsigned int ks, unsigned int ns
                     , bool use_LHS_shared, bool use_RHS_shared
                     , unsigned int unroll) : template_base::profile(vectorization,1){
+
               ml_= ml; kl_=kl ; nl_=nl;
               ms_ = ms; ks_=ks; ns_=ns;
               use_LHS_shared_ = use_LHS_shared ; use_RHS_shared_ = use_RHS_shared;
@@ -148,28 +149,28 @@ namespace viennacl{
             unsigned int unroll_;
         };
 
-        void transform_block(detail::mapped_matrix const & mat, bool store_shared
+        void transform_block(detail::mapped_matrix const & mat, bool store_shared, bool is_transposed
                                     , unsigned int & large_block_1, unsigned int & large_block_2
                                     , unsigned int & small_block_1, unsigned int & small_block_2) const {
           if(mat.is_row_major()){
-            if(mat.is_transposed())
+            if(is_transposed)
               large_block_1 /= profile_.vectorization_;
             else
               large_block_2/=profile_.vectorization_;
             if(!store_shared){
-              if(mat.is_transposed())
+              if(is_transposed)
                 small_block_1/=profile_.vectorization_;
               else
                 small_block_2/=profile_.vectorization_;
             }
           }
           else{
-            if(mat.is_transposed())
+            if(is_transposed)
               large_block_2 /= profile_.vectorization_;
             else
               large_block_1/=profile_.vectorization_;
             if(!store_shared){
-              if(mat.is_transposed())
+              if(is_transposed)
                 small_block_2/=profile_.vectorization_;
               else
                 small_block_1/=profile_.vectorization_;
@@ -191,41 +192,30 @@ namespace viennacl{
         void init_rhs_global_ptr(utils::kernel_generation_stream &  stream,  detail::mapped_matrix const & mat, std::string const & aligned_scalartype, std::string const & offset, unsigned int ks_rhs,unsigned int ns_rhs, unsigned int nl_rhs) const{
           if(mat.is_row_major())
             for(unsigned int k = 0 ; k < ks_rhs ; ++k){
-              std::string ptr_name = "ptr_rhs_" + utils::to_string(k);
-              stream << "__global " << aligned_scalartype << " * " << ptr_name << " = " << mat.name() << " + " ;
-              if(mat.is_transposed()){
-                std::string i = utils::to_string(k) + " + " + offset + " +  get_group_id(1)*" + utils::to_string(nl_rhs);
-                stream << mat.offset(i, "0");
-              }
-              else{
-                std::string i = utils::to_string(k);
-                std::string j = offset + " +  get_group_id(1)*" + utils::to_string(nl_rhs);
-                stream << mat.offset(i, j);
-              }
+              stream << "__global " << aligned_scalartype << " * ptr_rhs_" << k << " = " << mat.name() << " + " ;
+              if(is_rhs_transposed_)
+                stream<< mat.offset(utils::to_string(k) + " + " + offset + " +  get_group_id(1)*" + utils::to_string(nl_rhs),"0");
+              else
+                stream << mat.offset(utils::to_string(k), offset + " +  get_group_id(1)*" + utils::to_string(nl_rhs));
               stream << ";" << std::endl;
             }
           else
             for(unsigned int n = 0 ; n < ns_rhs ; ++n){
-              std::string ptr_name = "ptr_rhs_" + utils::to_string(n);
-              stream << "__global " << aligned_scalartype << " * " << ptr_name << " = " << mat.name() << " +  " ;
-              if(mat.is_transposed()){
-                std::string i = offset + " +  get_group_id(1)*" + utils::to_string(nl_rhs);
-                std::string j = utils::to_string(n);
-                stream << mat.offset(i, j);
-              }
-              else{
-                std::string j = offset + " +  get_group_id(1)*" + utils::to_string(nl_rhs) + " + " + utils::to_string(n);
-                stream << mat.offset("0",j);
-              }
+              stream << "__global " << aligned_scalartype << " * ptr_rhs_" << n << " = " << mat.name() << " +  " ;
+              if(is_rhs_transposed_)
+                stream << mat.offset(offset + " +  get_group_id(1)*" + utils::to_string(nl_rhs), utils::to_string(n));
+              else
+                stream << mat.offset("0",offset + " +  get_group_id(1)*" + utils::to_string(nl_rhs) + " + " + utils::to_string(n));
               stream << ";" << std::endl;
             }
         }
 
+
         void update_rhs_global_ptr(utils::kernel_generation_stream & stream,  detail::mapped_matrix const & mat, std::string const & aligned_scalartype,  unsigned int ks, unsigned int ns_rhs, unsigned int ks_rhs) const {
-          if(mat.is_row_major() && !mat.is_transposed())
+          if(mat.is_row_major() && !is_rhs_transposed_)
             for(unsigned int k=0 ; k<ks ; ++k)
               stream << "ptr_rhs_" << k << " += " << ks_rhs << "*" << profile::size3() << " - " << ns_rhs << ";" << std::endl;
-          else if(mat.is_transposed() && !mat.is_row_major())
+          else if(is_rhs_transposed_ && !mat.is_row_major())
             for(unsigned int n=0 ; n<ns_rhs ; ++n)
               stream << "ptr_rhs_" << n << " += " << ns_rhs << "*" << profile::size2() << " - " << ks_rhs << ";" << std::endl;
         }
@@ -236,7 +226,7 @@ namespace viennacl{
             for(unsigned int m=0; m<ms_lhs; ++m){
               std::string ptr_name = "ptr_lhs_" + utils::to_string(m);
               stream << "__global " << aligned_scalartype << " * " << ptr_name << " = " << mat.name() << " + ";
-              if(mat.is_transposed()){
+              if(is_lhs_transposed_){
                 std::string i = utils::to_string(m);
                 std::string j = "get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset;
                 stream << mat.offset(i,j);
@@ -252,7 +242,7 @@ namespace viennacl{
             for(unsigned int k=0; k<ks_lhs; ++k){
               std::string ptr_name = "ptr_lhs_" + utils::to_string(k);
               stream << "__global " << aligned_scalartype << " * " << ptr_name << " = " << mat.name() << " + " ;
-              if(mat.is_transposed()){
+              if(is_lhs_transposed_){
                 std::string j = utils::to_string(k) + "+" + "get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset ;
                 stream << mat.offset("0",j);
               }
@@ -267,10 +257,10 @@ namespace viennacl{
         }
 
         void update_lhs_global_ptr(utils::kernel_generation_stream & stream,  detail::mapped_matrix const & mat, std::string const & aligned_scalartype,  unsigned int ks, unsigned int ms_lhs, unsigned int ks_lhs) const {
-          if(mat.is_transposed() && mat.is_row_major())
+          if(is_lhs_transposed_ && mat.is_row_major())
             for(unsigned int m=0 ; m<ms_lhs ; ++m)
               stream << "ptr_lhs_" << m << " += " << ks << "*" << profile::size2() << " - " <<  ks_lhs << ";" << std::endl;
-          else if(!mat.is_transposed() && !mat.is_row_major())
+          else if(!is_lhs_transposed_ && !mat.is_row_major())
             for(unsigned int k=0 ; k<ks_lhs ; ++k)
               stream << "ptr_lhs_" << k << " += " << ks_lhs << "*" << profile::size1() << " - " << ms_lhs << ";" << std::endl;
         }
@@ -324,7 +314,10 @@ namespace viennacl{
 
 
       public:
-        matrix_product(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){ }
+        matrix_product(template_base::statements_type const & s, profile const & p) : template_base(s, profile_), profile_(p){
+          is_lhs_transposed_ = false;
+          is_rhs_transposed_ = false;
+        }
 
         void core(std::size_t idx, utils::kernel_generation_stream& stream) const{
 
@@ -352,22 +345,19 @@ namespace viennacl{
           lhs->bind_sizes("M", "K");
           rhs->bind_sizes("K", "N");
 
-          bool is_lhs_transposed = lhs->is_transposed();
-          bool is_rhs_transposed = rhs->is_transposed();
-
           unsigned int ml_res = ml, nl_res = nl, ms_res = ms, ns_res = ns;
           unsigned int ml_lhs = ml, kl_lhs = kl, ms_lhs = ms, ks_lhs = ks;
           unsigned int kl_rhs = kl, nl_rhs = nl, ks_rhs = ks, ns_rhs = ns;
 
-          transform_block(*assigned,false,ml_res,nl_res,ms_res,ns_res);
-          transform_block(*lhs,use_LHS_shared,ml_lhs,kl_lhs,ms_lhs,ks_lhs);
-          transform_block(*rhs,use_RHS_shared,kl_rhs,nl_rhs,ks_rhs,ns_rhs);
+          transform_block(*assigned,false,false,ml_res,nl_res,ms_res,ns_res);
+          transform_block(*lhs,is_lhs_transposed_,use_LHS_shared,ml_lhs,kl_lhs,ms_lhs,ks_lhs);
+          transform_block(*rhs,is_rhs_transposed_,use_RHS_shared,kl_rhs,nl_rhs,ks_rhs,ns_rhs);
 
           unsigned int lhs_local_size1 = ml, lhs_local_size2 = kl+1;
           unsigned int rhs_local_size1 = kl, rhs_local_size2 = nl+1;
-          if(is_lhs_transposed)
+          if(is_lhs_transposed_)
             std::swap(lhs_local_size1, lhs_local_size2);
-          if(is_rhs_transposed)
+          if(is_rhs_transposed_)
             std::swap(rhs_local_size1, rhs_local_size2);
 
           std::string aligned_scalartype = assigned->scalartype();
@@ -402,7 +392,7 @@ namespace viennacl{
           std::string offset_m = helper_variable(stream,false,"unsigned int", "offset_m", "get_local_id(0)*" + utils::to_string(ms_lhs));
           std::string offset_n = helper_variable(stream,false,"unsigned int", "offset_n", "get_local_id(1)*" + utils::to_string(ns_rhs));
           std::string n_blocks;
-          if(is_lhs_transposed)
+          if(is_lhs_transposed_)
             n_blocks = "M/" + utils::to_string(kl_lhs);
           else
             n_blocks = "K/" + utils::to_string(kl_lhs);
@@ -414,26 +404,26 @@ namespace viennacl{
           stream <<  assigned->name() << " + " << assigned->offset("get_global_id(0)*" + utils::to_string(ms_res), "get_global_id(1)*" + utils::to_string(ns_res)) << ";" << std::endl;
 
           if(use_RHS_shared){
-            if(is_rhs_transposed)
+            if(is_rhs_transposed_)
               stream << "unsigned int offsetRHS = " << rhs->offset(" get_group_id(1)*" + utils::to_string(nl_rhs),"0") << ";" << std::endl;
             else
               stream << "unsigned int offsetRHS = " << rhs->offset("0", " get_group_id(1)*" + utils::to_string(nl_rhs)) << ";" << std::endl;
           }
           else{
-            if(is_rhs_transposed)
+            if(is_rhs_transposed_)
               init_rhs_global_ptr(stream,*rhs,aligned_scalartype,offset_n, ns_rhs, ks_rhs, nl_rhs);
             else
               init_rhs_global_ptr(stream,*rhs,aligned_scalartype,offset_n, ks_rhs, ns_rhs, nl_rhs);
           }
 
           if(use_LHS_shared){
-            if(is_lhs_transposed)
+            if(is_lhs_transposed_)
               stream << "unsigned int offsetLHS = " << lhs->offset("0", "get_group_id(0)*" + utils::to_string(ml_lhs)) << ";" << std::endl;
             else
               stream << "unsigned int offsetLHS = " << lhs->offset("get_group_id(0)*" + utils::to_string(ml_lhs), "0") << ";" << std::endl;
           }
           else{
-            if(is_lhs_transposed)
+            if(is_lhs_transposed_)
               init_lhs_global_ptr(stream, *lhs, aligned_scalartype, offset_m, ks_lhs, ms_lhs, ml_lhs);
             else
               init_lhs_global_ptr(stream, *lhs, aligned_scalartype, offset_m, ms_lhs, ks_lhs, ml_lhs);
@@ -446,14 +436,14 @@ namespace viennacl{
 
           //Fetches to local memory if necessary and declares pointers to local memory
           if(use_LHS_shared){
-            if(is_lhs_transposed)
+            if(is_lhs_transposed_)
               fetch_to_local_mem(stream,"local_lhs", lhs_local_size2, "offsetLHS",kl_lhs,ml_lhs,*lhs,aligned_scalartype);
             else
               fetch_to_local_mem(stream,"local_lhs", lhs_local_size2, "offsetLHS",ml_lhs,kl_lhs,*lhs,aligned_scalartype);
-            unsigned int upper_bound = is_lhs_transposed?ks_lhs:ms_lhs;
+            unsigned int upper_bound = is_lhs_transposed_?ks_lhs:ms_lhs;
             for(unsigned int m=0; m<upper_bound; ++m){
               stream << "__local " << lhs_value_scalartype << "* ptr_lhs_" << m << " = local_lhs + " ;
-              if(is_lhs_transposed)
+              if(is_lhs_transposed_)
                 stream << m*lhs_local_size2 << " + " << offset_m ;
               else
                 stream << "(" << offset_m << "+" << m << ")" << "*" << lhs_local_size2;
@@ -462,14 +452,14 @@ namespace viennacl{
           }
 
           if(use_RHS_shared){
-            if(is_rhs_transposed)
+            if(is_rhs_transposed_)
               fetch_to_local_mem(stream,"local_rhs", rhs_local_size2, "offsetRHS",nl_rhs,kl_rhs,*rhs,aligned_scalartype);
             else
               fetch_to_local_mem(stream,"local_rhs", rhs_local_size2, "offsetRHS",kl_rhs,nl_rhs,*rhs,aligned_scalartype);
-            unsigned int upper_bound = is_rhs_transposed?ns_rhs:ks_rhs;
+            unsigned int upper_bound = is_rhs_transposed_?ns_rhs:ks_rhs;
             for(unsigned int k=0; k<upper_bound; ++k){
               stream << "__local " << rhs_value_scalartype << "* ptr_rhs_" << k << " = local_rhs + " ;
-              if(is_rhs_transposed)
+              if(is_rhs_transposed_)
                 stream << "(" << offset_n << "+" << k << ")*" << rhs_local_size2;
               else
                 stream << k*rhs_local_size2 << " + " << offset_n;
@@ -483,8 +473,8 @@ namespace viennacl{
           stream.inc_tab();
 
 
-          unsigned int upperbound_1_rhs = is_rhs_transposed?ns_rhs:ks_rhs;
-          unsigned int upperbound_2_rhs = is_rhs_transposed?ks_rhs:ns_rhs;
+          unsigned int upperbound_1_rhs = is_rhs_transposed_?ns_rhs:ks_rhs;
+          unsigned int upperbound_2_rhs = is_rhs_transposed_?ks_rhs:ns_rhs;
           for(unsigned int k = 0 ; k < upperbound_1_rhs ; ++k){
             for(unsigned int n=0 ; n < upperbound_2_rhs ; ++n){
               stream << rhs_value_scalartype << " val_rhs_" << k << "_" << n << " = " ;
@@ -502,8 +492,8 @@ namespace viennacl{
 
 
 
-          unsigned int upperbound_1_lhs = is_lhs_transposed?ms_lhs:ks_lhs;
-          unsigned int upperbound_2_lhs = is_lhs_transposed?ks_lhs:ms_lhs;
+          unsigned int upperbound_1_lhs = is_lhs_transposed_?ms_lhs:ks_lhs;
+          unsigned int upperbound_2_lhs = is_lhs_transposed_?ks_lhs:ms_lhs;
           for(unsigned int k = 0 ; k < upperbound_1_lhs ; ++k){
             for(unsigned int m=0 ; m < upperbound_2_lhs ; ++m){
               stream << lhs_value_scalartype << " " << "val_lhs_" << m << "_" << k << " = ";
@@ -536,7 +526,7 @@ namespace viennacl{
                   bool is_vectorized_rhs = false;
 
                   if(assigned->is_row_major()){
-                    if(is_lhs_transposed) std::swap(ind_lhs_1,ind_lhs_2);
+                    if(is_lhs_transposed_) std::swap(ind_lhs_1,ind_lhs_2);
 
                     if(!use_LHS_shared){
                       if(lhs->is_row_major()){
@@ -554,15 +544,15 @@ namespace viennacl{
                       ind_lhs_1 = ind_lhs_1*vectorization+a;
                     }
                     else{
-                      if((lhs->is_row_major() && !is_lhs_transposed)
-                         ||(!lhs->is_row_major() && is_lhs_transposed)){
+                      if((lhs->is_row_major() && !is_lhs_transposed_)
+                         ||(!lhs->is_row_major() && is_lhs_transposed_)){
                         ind_lhs_1 = ind_lhs_1*vectorization+a;
                         ind_s_lhs = ind_lhs_2%vectorization;
                         ind_lhs_2 /= vectorization;
 
                       }
                     }
-                    if(is_lhs_transposed) std::swap(ind_lhs_1,ind_lhs_2);
+                    if(is_lhs_transposed_) std::swap(ind_lhs_1,ind_lhs_2);
                   }
 
                   if(assigned->is_row_major()){
@@ -570,20 +560,20 @@ namespace viennacl{
                       ind_rhs_2 = ind_rhs_2*vectorization+a;
                     }
                     else{
-                      if((!rhs->is_row_major() && !is_rhs_transposed)
-                         ||(rhs->is_row_major() && is_rhs_transposed)){
+                      if((!rhs->is_row_major() && !is_rhs_transposed_)
+                         ||(rhs->is_row_major() && is_rhs_transposed_)){
                         ind_rhs_2 = ind_rhs_2*vectorization+a;
                         ind_s_rhs = ind_rhs_1%vectorization;
                         ind_rhs_1 = ind_rhs_1/vectorization;
                       }
-                      else if( (rhs->is_row_major() && !is_rhs_transposed) ){
+                      else if( (rhs->is_row_major() && !is_rhs_transposed_) ){
                         is_vectorized_rhs=true;
                       }
                     }
-                    if(is_rhs_transposed) std::swap(ind_rhs_1,ind_rhs_2);
+                    if(is_rhs_transposed_) std::swap(ind_rhs_1,ind_rhs_2);
                   }
                   else{
-                    if(is_rhs_transposed) std::swap(ind_rhs_1,ind_rhs_2);
+                    if(is_rhs_transposed_) std::swap(ind_rhs_1,ind_rhs_2);
                     if(!use_RHS_shared){
                       if(rhs->is_row_major()){
                         ind_s_rhs = ind_rhs_2%vectorization;
@@ -626,10 +616,10 @@ namespace viennacl{
 
           if(use_RHS_shared){
             for(unsigned int k=0 ; k<ks ; ++k)
-              if(!is_rhs_transposed) stream << "ptr_rhs_" << k << " += " << ks_rhs*rhs_local_size2 - ns_rhs << ";" << std::endl;
+              if(!is_rhs_transposed_) stream << "ptr_rhs_" << k << " += " << ks_rhs*rhs_local_size2 - ns_rhs << ";" << std::endl;
           }
           else{
-            if(is_rhs_transposed)
+            if(is_rhs_transposed_)
               update_rhs_global_ptr(stream, *rhs, aligned_scalartype, ks, ks_rhs, ns_rhs);
             else
               update_rhs_global_ptr(stream, *rhs, aligned_scalartype, ks, ns_rhs, ks_rhs);
@@ -639,10 +629,10 @@ namespace viennacl{
 
           if(use_LHS_shared){
             for(unsigned int m=0 ; m<ks_lhs ; ++m)
-              if(is_lhs_transposed) stream << "ptr_lhs_" << m << " += " << ks*lhs_local_size2 - ms_lhs << ";" << std::endl;
+              if(is_lhs_transposed_) stream << "ptr_lhs_" << m << " += " << ks*lhs_local_size2 - ms_lhs << ";" << std::endl;
           }
           else{
-            if(is_lhs_transposed)
+            if(is_lhs_transposed_)
               update_lhs_global_ptr(stream, *lhs, aligned_scalartype,ks,ks_lhs,ms_lhs);
             else
               update_lhs_global_ptr(stream, *lhs, aligned_scalartype,ks,ms_lhs,ks_lhs);
@@ -654,7 +644,7 @@ namespace viennacl{
           stream << "}" << std::endl;
 
           if(use_LHS_shared){
-            if(is_lhs_transposed){
+            if(is_lhs_transposed_){
               if(lhs->is_row_major())
                 stream << "offsetLHS += " << kl_lhs << "*" << lhs->size2() << ";" << std::endl;
               else
@@ -670,7 +660,7 @@ namespace viennacl{
           }
 
           if(use_RHS_shared){
-            if(is_rhs_transposed){
+            if(is_rhs_transposed_){
               if(rhs->is_row_major())
                 stream << "offsetRHS += " << kl_rhs << ";" << std::endl;
               else
@@ -710,6 +700,9 @@ namespace viennacl{
 
       private:
         profile profile_;
+
+        bool is_lhs_transposed_;
+        bool is_rhs_transposed_;
     };
 
   }

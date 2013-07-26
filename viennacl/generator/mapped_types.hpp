@@ -58,7 +58,7 @@ namespace viennacl{
             else
               return generate_default(index);
           }
-          virtual std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{ return str; }
+          virtual std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str, unsigned int vector_size) const{ return str; }
           virtual ~mapped_container(){ }
         protected:
           std::string access_name_;
@@ -109,7 +109,7 @@ namespace viennacl{
         public:
           mapped_host_scalar(std::string const & scalartype) : mapped_container(scalartype){ }
           std::string const & name() { return name_; }
-          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str, unsigned int vector_size) const{
             if(already_generated.insert(name_).second)
               str += detail::generate_value_kernel_argument(scalartype_, name_);
             return str;
@@ -147,9 +147,12 @@ namespace viennacl{
             }
           }
 
-          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str, unsigned int vector_size) const{
             if(already_generated.insert(name_).second){
-              str += detail::generate_pointer_kernel_argument("__global", scalartype_, name_);
+              std::string vector_scalartype = scalartype_;
+              if(vector_size>1)
+                vector_scalartype+=utils::to_string(vector_size);
+              str += detail::generate_pointer_kernel_argument("__global", vector_scalartype, name_);
               append_optional_arguments(str);
             }
             return str;
@@ -217,7 +220,6 @@ namespace viennacl{
           }
         public:
           bool is_row_major() const { return is_row_major_; }
-          bool is_transposed() const { return is_transposed_; }
           std::string const & size1() const { return size1_; }
           std::string const & size2() const { return size2_; }
           void bind_sizes(std::string const & size1, std::string const & size2) const{
@@ -248,7 +250,6 @@ namespace viennacl{
           std::string stride2_name_;
           std::string shift2_name_;
           bool is_row_major_;
-          bool is_transposed_;
       };
 
       /** @brief Mapping of a symbolic vector to a generator class */
@@ -262,7 +263,7 @@ namespace viennacl{
           std::string generate_default(std::string const & index) const{
             return value_name_;
           }
-          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str, unsigned int vector_size) const{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
             if(!index_name_.empty())
@@ -281,7 +282,7 @@ namespace viennacl{
           std::string generate_default(std::string const & index) const{
             return value_name_;
           }
-          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str) const{
+          std::string & append_kernel_arguments(std::set<std::string> already_generated, std::string & str, unsigned int vector_size) const{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
             return str;

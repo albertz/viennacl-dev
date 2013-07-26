@@ -131,7 +131,7 @@ namespace viennacl{
                           , matrix_saxpy_profile_(1,16,16,16,16,true)
                           , scalar_reduction_profile_(1, 128, 128, true)
                           , vector_reduction_profile_(1, 1, 256, 32)
-                          , matrix_product_profile_(1,32,32,32,4,4,4,true,false,1)
+                          , matrix_product_profile_(4,16,32,64,4,2,8,true,false,1)
                            {
           statements_.reserve(16);
         }

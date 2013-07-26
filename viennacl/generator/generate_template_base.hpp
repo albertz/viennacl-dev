@@ -66,6 +66,8 @@ namespace viennacl{
             virtual void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const = 0;
             virtual void set_local_sizes(std::size_t & x, std::size_t & y, std::size_t kernel_id) const = 0;
 
+            unsigned int vectorization() const { return vectorization_; }
+
             /** @brief returns whether or not the profile leads to undefined behavior on particular device
          *  @param dev the given device*/
             bool is_invalid(viennacl::ocl::device const & dev, size_t scalartype_size) const{
@@ -105,7 +107,7 @@ namespace viennacl{
           detail::map_all_statements(statements_.begin(), statements_.end(), mapping_);
           for(std::size_t i = 0 ; i < mapping_.size() ; ++i){
             for(detail::mapping_type::iterator it = mapping_[i].begin() ; it != mapping_[i].end() ; ++it){
-              it->second->append_kernel_arguments(already_generated, prototype);
+              it->second->append_kernel_arguments(already_generated, prototype, profile_.vectorization());
             }
           }
           prototype.erase(prototype.size()-1); //Last comma pruned

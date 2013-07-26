@@ -124,6 +124,7 @@ namespace viennacl{
             if(mat.stride2()>1)
               *ptr_++='s';
             *ptr_++=utils::first_letter_of_type<ScalarType>::value();
+            *ptr_++=utils::first_letter_of_type<Layout>::value();
             append_id(ptr_, get_id((void*)&mat));
           }
 

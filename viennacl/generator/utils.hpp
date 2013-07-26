@@ -189,6 +189,8 @@ namespace viennacl{
       struct first_letter_of_type;
       template<> struct first_letter_of_type<float> { static char value() { return 'f'; } };
       template<> struct first_letter_of_type<double> { static char value() { return 'd'; } };
+      template<> struct first_letter_of_type<viennacl::row_major> { static char value() { return 'r'; } };
+      template<> struct first_letter_of_type<viennacl::column_major> { static char value() { return 'c'; } };
 
       class kernel_generation_stream : public std::ostream{
         private:
