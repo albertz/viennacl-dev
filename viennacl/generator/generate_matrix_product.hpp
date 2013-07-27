@@ -324,7 +324,6 @@ namespace viennacl{
 
           bool use_LHS_shared = profile_.use_LHS_shared_;
           bool use_RHS_shared = profile_.use_RHS_shared_;
-          unsigned int vectorization = profile_.vectorization_;
           unsigned int kl = profile_.kl_;
           unsigned int ks = profile_.ks_;
           unsigned int ml = profile_.ml_;
@@ -334,20 +333,69 @@ namespace viennacl{
           unsigned int unroll = profile_.unroll_;
 
           detail::mapped_matrix const * assigned = static_cast<detail::mapped_matrix const *>(mapping_[0].at(std::make_pair(0,detail::LHS_NODE_TYPE)).get());
-          std::vector<detail::mapped_matrix_product*> exprs;
-          for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
-            for(detail::mapping_type::iterator iit = it->begin() ; iit != it->end() ; ++iit)
-              if(detail::mapped_matrix_product * p = dynamic_cast<detail::mapped_matrix_product*>(iit->second.get()))
-                exprs.push_back(p);
-          detail::mapped_matrix const * lhs = static_cast<detail::mapped_matrix const *>(exprs.front()->lhs().mapping_->at(exprs.front()->lhs().index_).get());
-          detail::mapped_matrix const * rhs = static_cast<detail::mapped_matrix const *>(exprs.front()->rhs().mapping_->at(exprs.front()->rhs().index_).get());
+          detail::mapped_matrix const * lhs = NULL;
+          detail::mapped_matrix const * rhs = NULL;
+          bool is_lhs_transposed = false;
+          bool is_rhs_transposed = false;
 
-          assigned->bind_sizes("M", "N");
-          lhs->bind_sizes("M", "K");
-          rhs->bind_sizes("K", "N");
+          for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
+            scheduler::statement::container_type exprs = it->array();
+            std::size_t i = std::distance(statements_.begin(), it);
+            for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit){
+              if(iit->op_type_==scheduler::OPERATION_BINARY_MAT_MAT_PROD_TYPE){
+                std::size_t j = std::distance(exprs.begin(), iit);
+
+                if(iit->lhs_type_family_ == scheduler::COMPOSITE_OPERATION_FAMILY){
+                  is_lhs_transposed = true;
+                  lhs = (detail::mapped_matrix const *)mapping_[i][std::make_pair(iit->lhs_.node_index_,detail::LHS_NODE_TYPE)].get();
+                }
+                else{
+                  lhs = (detail::mapped_matrix const *)mapping_[i][std::make_pair(j, detail::LHS_NODE_TYPE)].get();
+                  is_lhs_transposed = false;
+                }
+
+                if(iit->rhs_type_family_ == scheduler::COMPOSITE_OPERATION_FAMILY){
+                  is_rhs_transposed = true;
+                  rhs = (detail::mapped_matrix const *)mapping_[i][std::make_pair(iit->rhs_.node_index_,detail::LHS_NODE_TYPE)].get();
+                }
+                else{
+                  rhs = (detail::mapped_matrix const *)mapping_[i][std::make_pair(j, detail::LHS_NODE_TYPE)].get();
+                  is_lhs_transposed = false;
+                }
+
+              }
+            }
+          }
+
+          if(profile_.vectorization_>1){
+
+            if(assigned->is_row_major())
+              assigned->bind_sizes("M", "N/"+utils::to_string(profile_.vectorization_));
+            else
+              assigned->bind_sizes("M/"+utils::to_string(profile_.vectorization_), "N");
+
+            if(lhs->is_row_major())
+              lhs->bind_sizes("M", "K/"+utils::to_string(profile_.vectorization_));
+            else
+              lhs->bind_sizes("M/"+utils::to_string(profile_.vectorization_), "K");
+
+            if(rhs->is_row_major())
+              rhs->bind_sizes("K", "N/"+utils::to_string(profile_.vectorization_));
+            else
+              rhs->bind_sizes("K/"+utils::to_string(profile_.vectorization_), "N");
+
+          }
+          else{
+            assigned->bind_sizes("M", "N");
+            lhs->bind_sizes("M", "K");
+            rhs->bind_sizes("K", "N");
+          }
+
+
 
           aligned_scalartype_ = assigned->scalartype();
-          if(profile_.vectorization_ > 1) aligned_scalartype_+=utils::to_string(profile_.vectorization_);
+          if(profile_.vectorization_ > 1)
+            aligned_scalartype_+=utils::to_string(profile_.vectorization_);
 
 
 
@@ -355,8 +403,6 @@ namespace viennacl{
           bool is_rhs_rowmajor = rhs->is_row_major();
           bool is_result_rowmajor = assigned->is_row_major();
 
-          bool is_lhs_transposed = false;
-          bool is_rhs_transposed = false;
 
           std::string lhs_value_scalartype;
           if(use_LHS_shared)
@@ -488,6 +534,7 @@ namespace viennacl{
 
           unsigned int upperbound_1_rhs = is_rhs_transposed?ns_rhs:ks_rhs;
           unsigned int upperbound_2_rhs = is_rhs_transposed?ks_rhs:ns_rhs;
+
           for(unsigned int k = 0 ; k < upperbound_1_rhs ; ++k){
             for(unsigned int n=0 ; n < upperbound_2_rhs ; ++n){
               stream << rhs_value_scalartype << " val_rhs_" << k << "_" << n << " = " ;
@@ -533,7 +580,7 @@ namespace viennacl{
           for(unsigned int k = 0 ; k < ks ; ++k){
             for(unsigned int n=0 ; n < ns_res ; ++n){
               for(unsigned int m=0 ; m < ms_res ; ++m){
-                for(unsigned int a = 0; a<vectorization; ++a){
+                for(unsigned int a = 0; a<profile_.vectorization_; ++a){
 
                   int ind_lhs_1 = m;
                   int ind_lhs_2 = k;
@@ -547,29 +594,30 @@ namespace viennacl{
                   bool is_vectorized_rhs = false;
 
                   if(is_result_rowmajor){
-                    if(is_lhs_transposed) std::swap(ind_lhs_1,ind_lhs_2);
+                    if(is_lhs_transposed)
+                      std::swap(ind_lhs_1,ind_lhs_2);
 
                     if(!use_LHS_shared){
                       if(is_lhs_rowmajor){
-                        ind_s_lhs = ind_lhs_2%vectorization;
-                        ind_lhs_2 /= vectorization;
+                        ind_s_lhs = ind_lhs_2%profile_.vectorization_;
+                        ind_lhs_2 /= profile_.vectorization_;
                       }
                       else{
-                        ind_s_lhs = ind_lhs_1%vectorization;
-                        ind_lhs_1 /= vectorization;
+                        ind_s_lhs = ind_lhs_1%profile_.vectorization_;
+                        ind_lhs_1 /= profile_.vectorization_;
                       }
                     }
                   }
                   else{
                     if(use_LHS_shared){
-                      ind_lhs_1 = ind_lhs_1*vectorization+a;
+                      ind_lhs_1 = ind_lhs_1*profile_.vectorization_+a;
                     }
                     else{
                       if((is_lhs_rowmajor && !is_lhs_transposed)
                          ||(!is_lhs_rowmajor && is_lhs_transposed)){
-                        ind_lhs_1 = ind_lhs_1*vectorization+a;
-                        ind_s_lhs = ind_lhs_2%vectorization;
-                        ind_lhs_2 /= vectorization;
+                        ind_lhs_1 = ind_lhs_1*profile_.vectorization_+a;
+                        ind_s_lhs = ind_lhs_2%profile_.vectorization_;
+                        ind_lhs_2 /= profile_.vectorization_;
 
                       }
                     }
@@ -578,14 +626,14 @@ namespace viennacl{
 
                   if(is_result_rowmajor){
                     if(use_RHS_shared){
-                      ind_rhs_2 = ind_rhs_2*vectorization+a;
+                      ind_rhs_2 = ind_rhs_2*profile_.vectorization_+a;
                     }
                     else{
                       if((!is_rhs_rowmajor && !is_rhs_transposed)
                          ||(is_rhs_rowmajor && is_rhs_transposed)){
-                        ind_rhs_2 = ind_rhs_2*vectorization+a;
-                        ind_s_rhs = ind_rhs_1%vectorization;
-                        ind_rhs_1 = ind_rhs_1/vectorization;
+                        ind_rhs_2 = ind_rhs_2*profile_.vectorization_+a;
+                        ind_s_rhs = ind_rhs_1%profile_.vectorization_;
+                        ind_rhs_1 = ind_rhs_1/profile_.vectorization_;
                       }
                       else if( (is_rhs_rowmajor && !is_rhs_transposed) ){
                         is_vectorized_rhs=true;
@@ -597,12 +645,12 @@ namespace viennacl{
                     if(is_rhs_transposed) std::swap(ind_rhs_1,ind_rhs_2);
                     if(!use_RHS_shared){
                       if(is_rhs_rowmajor){
-                        ind_s_rhs = ind_rhs_2%vectorization;
-                        ind_rhs_2/=vectorization;
+                        ind_s_rhs = ind_rhs_2%profile_.vectorization_;
+                        ind_rhs_2/=profile_.vectorization_;
                       }
                       else{
-                        ind_s_rhs = ind_rhs_1%vectorization;
-                        ind_rhs_1/=vectorization;
+                        ind_s_rhs = ind_rhs_1%profile_.vectorization_;
+                        ind_rhs_1/=profile_.vectorization_;
                       }
                     }
                   }
@@ -614,17 +662,18 @@ namespace viennacl{
                   std::ostringstream rhs_oss;
 
                   res_oss << "res" << m << n ;
-                  if(!is_vectorized && vectorization>1) res_oss << ".s" << a;
+                  if(!is_vectorized && profile_.vectorization_>1) res_oss << ".s" << a;
 
                   lhs_oss << "val_lhs_" << ind_lhs_1 << "_" << ind_lhs_2;
-                  if(!is_vectorized_lhs && !use_LHS_shared && vectorization>1) lhs_oss << ".s" << ind_s_lhs;
+                  if(!is_vectorized_lhs && !use_LHS_shared && profile_.vectorization_>1) lhs_oss << ".s" << ind_s_lhs;
 
 
                   rhs_oss << "val_rhs_" << ind_rhs_1 << "_" << ind_rhs_2;
-                  if(!is_vectorized_rhs && !use_RHS_shared && vectorization>1) rhs_oss << ".s" << ind_s_rhs;
+                  if(!is_vectorized_rhs && !use_RHS_shared && profile_.vectorization_>1) rhs_oss << ".s" << ind_s_rhs;
 
 
                   stream << res_oss.str() << "+=" << lhs_oss.str() << "*" << rhs_oss.str() << ";" << std::endl;
+
 
 
                   if(is_vectorized)

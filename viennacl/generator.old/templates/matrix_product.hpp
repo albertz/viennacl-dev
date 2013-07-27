@@ -141,16 +141,22 @@ namespace viennacl{
                                         , unsigned int & small_block_1, unsigned int & small_block_2){
               unsigned int vectorization = mat_infos.alignment();
               if(mat_infos.is_rowmajor()){
-                if(is_transposed) large_block_1 /= vectorization;
-                else large_block_2/=vectorization;
+                if(is_transposed)
+                  large_block_1 /= vectorization;
+                else
+                  large_block_2/=vectorization;
                 if(!store_shared){
-                  if(is_transposed) small_block_1/=vectorization;
-                  else small_block_2/=vectorization;
+                  if(is_transposed)
+                    small_block_1/=vectorization;
+                  else
+                    small_block_2/=vectorization;
                 }
               }
               else{
-                if(is_transposed) large_block_2 /= vectorization;
-                else large_block_1/=vectorization;
+                if(is_transposed)
+                  large_block_2 /= vectorization;
+                else
+                  large_block_1/=vectorization;
                 if(!store_shared){
                   if(is_transposed)  small_block_2/=vectorization;
                   else    small_block_1/=vectorization;
@@ -399,9 +405,9 @@ namespace viennacl{
               for(std::list<symbolic_matrix_matrix_product_base*>::iterator it = matmat_prods.begin() ; it != matmat_prods.end() ; ++it){
                 (*it)->set_val_name("prod_val_" + utils::to_string(std::distance(matmat_prods.begin(),it)));
               }
-              symbolic_matrix_base* first_lhs = *lhss.begin();
-              symbolic_matrix_base* first_rhs = *rhss.begin();
-              symbolic_matrix_base* first_assigned = assigned.front();
+              symbolic_matrix_base* lhs = *lhss.begin();
+              symbolic_matrix_base* rhs = *rhss.begin();
+              symbolic_matrix_base* assigned = assigned.front();
 
               bool use_LHS_shared = casted_prof->use_LHS_shared();
               bool use_RHS_shared = casted_prof->use_RHS_shared();
@@ -414,57 +420,57 @@ namespace viennacl{
               unsigned int ns = casted_prof->ns();
               unsigned int unroll = casted_prof->unroll();
 
-              bool is_lhs_rowmajor = first_lhs->is_rowmajor();
-              bool is_rhs_rowmajor = first_rhs->is_rowmajor();
-              bool is_result_rowmajor = first_assigned->is_rowmajor();
+              bool is_lhs_rowmajor = lhs->is_rowmajor();
+              bool is_rhs_rowmajor = rhs->is_rowmajor();
+              bool is_result_rowmajor = assigned->is_rowmajor();
 
               bool is_lhs_transposed = is_transposed(&first_prod->lhs());
               bool is_rhs_transposed = is_transposed(&first_prod->rhs());
 
               std::string lhs_value_scalartype;
               if(use_LHS_shared)
-                lhs_value_scalartype = first_lhs->scalartype();
+                lhs_value_scalartype = lhs->scalartype();
               else
-                lhs_value_scalartype = first_lhs->aligned_scalartype();
+                lhs_value_scalartype = lhs->aligned_scalartype();
 
               std::string rhs_value_scalartype;
               if(use_RHS_shared)
-                rhs_value_scalartype = first_rhs->scalartype();
+                rhs_value_scalartype = rhs->scalartype();
               else
-                rhs_value_scalartype = first_rhs->aligned_scalartype();
+                rhs_value_scalartype = rhs->aligned_scalartype();
 
               unsigned int ml_res = ml, nl_res = nl, ms_res = ms, ns_res = ns;
               unsigned int ml_lhs = ml, kl_lhs = kl, ms_lhs = ms, ks_lhs = ks;
               unsigned int kl_rhs = kl, nl_rhs = nl, ks_rhs = ks, ns_rhs = ns;
 
-              transform_block(*first_assigned,false,false,ml_res,nl_res,ms_res,ns_res);
-              transform_block(*first_lhs,is_lhs_transposed,use_LHS_shared,ml_lhs,kl_lhs,ms_lhs,ks_lhs);
-              transform_block(*first_rhs,is_rhs_transposed,use_RHS_shared,kl_rhs,nl_rhs,ks_rhs,ns_rhs);
+              transform_block(*assigned,false,false,ml_res,nl_res,ms_res,ns_res);
+              transform_block(*lhs,is_lhs_transposed,use_LHS_shared,ml_lhs,kl_lhs,ms_lhs,ks_lhs);
+              transform_block(*rhs,is_rhs_transposed,use_RHS_shared,kl_rhs,nl_rhs,ks_rhs,ns_rhs);
 
 
 
-              std::string internal_size1_lhs = first_lhs->internal_size1();
-              std::string internal_size2_lhs = first_lhs->internal_size2();
+              std::string internal_size1_lhs = lhs->internal_size1();
+              std::string internal_size2_lhs = lhs->internal_size2();
 
-              std::string internal_size1_rhs = first_rhs->internal_size1();
-              std::string internal_size2_rhs = first_rhs->internal_size2();
+              std::string internal_size1_rhs = rhs->internal_size1();
+              std::string internal_size2_rhs = rhs->internal_size2();
 
-              std::string internal_size1_res = first_assigned->internal_size1();
-              std::string internal_size2_res = first_assigned->internal_size2();
+              std::string internal_size1_res = assigned->internal_size1();
+              std::string internal_size2_res = assigned->internal_size2();
 
               unsigned int lhs_size1 = ml, lhs_size2 = kl;
               unsigned int rhs_size1 = kl, rhs_size2 = nl;
               if(is_lhs_transposed) std::swap(lhs_size1, lhs_size2);
               if(is_rhs_transposed) std::swap(rhs_size1, rhs_size2);
 
-              symbolic_local_memory<2> lmem_lhs("local_lhs",lhs_size1,lhs_size2+1,first_lhs->scalartype());
-              symbolic_local_memory<2> lmem_rhs("local_rhs",rhs_size1,rhs_size2+1,first_lhs->scalartype());
+              symbolic_local_memory<2> lmem_lhs("local_lhs",lhs_size1,lhs_size2+1,lhs->scalartype());
+              symbolic_local_memory<2> lmem_rhs("local_rhs",rhs_size1,rhs_size2+1,lhs->scalartype());
 
               //Declaration of results registers
               //                        std::string res_table_name(first_prod->repr() + "_res");
               for(unsigned int m=0; m< ms_res; ++m)
                 for(unsigned int n=0; n < ns_res ; ++n)
-                  kss << first_assigned->aligned_scalartype() << " " << first_prod->val_name(m,n) << " = (" << first_assigned->aligned_scalartype() << ")(0) ;" << std::endl;
+                  kss << assigned->aligned_scalartype() << " " << first_prod->val_name(m,n) << " = (" << assigned->aligned_scalartype() << ")(0) ;" << std::endl;
 
               //Declaration of local memories
               if(use_LHS_shared) kss << lmem_lhs.declare() << ";" << std::endl;
@@ -476,11 +482,11 @@ namespace viennacl{
               std::string block_num = helper_variable(kss,true,"unsigned int", "block_num", (is_lhs_transposed?internal_size1_lhs:internal_size2_lhs) + '/' + utils::to_string(kl_lhs));
 
               //Declaration of pointers and/or offsets to result, rhs, lhs.
-              kss << "__global " << first_assigned->aligned_scalartype() << "* res_ptr = " <<  first_assigned->name() << " + " << first_assigned->offset("get_global_id(0)*" + utils::to_string(ms_res), "get_global_id(1)*" + utils::to_string(ns_res)) << ";" << std::endl;
+              kss << "__global " << assigned->aligned_scalartype() << "* res_ptr = " <<  assigned->name() << " + " << assigned->offset("get_global_id(0)*" + utils::to_string(ms_res), "get_global_id(1)*" + utils::to_string(ns_res)) << ";" << std::endl;
 
               if(use_RHS_shared){
-                if(is_rhs_transposed) kss << "unsigned int offsetRHS = " << first_rhs->offset(" get_group_id(1)*" + utils::to_string(nl_rhs),"0") << ";" << std::endl;
-                else kss << "unsigned int offsetRHS = " << first_rhs->offset("0", " get_group_id(1)*" + utils::to_string(nl_rhs)) << ";" << std::endl;
+                if(is_rhs_transposed) kss << "unsigned int offsetRHS = " << rhs->offset(" get_group_id(1)*" + utils::to_string(nl_rhs),"0") << ";" << std::endl;
+                else kss << "unsigned int offsetRHS = " << rhs->offset("0", " get_group_id(1)*" + utils::to_string(nl_rhs)) << ";" << std::endl;
               }
               else{
                 if(is_rhs_transposed)
@@ -490,8 +496,8 @@ namespace viennacl{
               }
 
               if(use_LHS_shared){
-                if(is_lhs_transposed) kss << "unsigned int offsetLHS = " << first_lhs->offset("0", "get_group_id(0)*" + utils::to_string(ml_lhs)) << ";" << std::endl;
-                else kss << "unsigned int offsetLHS = " << first_lhs->offset("get_group_id(0)*" + utils::to_string(ml_lhs), "0") << ";" << std::endl;
+                if(is_lhs_transposed) kss << "unsigned int offsetLHS = " << lhs->offset("0", "get_group_id(0)*" + utils::to_string(ml_lhs)) << ";" << std::endl;
+                else kss << "unsigned int offsetLHS = " << lhs->offset("get_group_id(0)*" + utils::to_string(ml_lhs), "0") << ";" << std::endl;
               }
               else{
                 if(is_lhs_transposed)
@@ -750,7 +756,7 @@ namespace viennacl{
               kss.dec_tab();
               kss << "}" << std::endl;
 
-              if(first_assigned->is_rowmajor()){
+              if(assigned->is_rowmajor()){
                 for(unsigned int m=0 ; m < ms_res ; ++m){
                   for(unsigned int n=0 ; n < ns_res ; ++n){
                     kss << "*res_ptr++=" << first_prod->val_name(m,n) << ";" << std::endl;
