@@ -356,11 +356,11 @@ namespace viennacl{
 
                 if(iit->rhs_type_family_ == scheduler::COMPOSITE_OPERATION_FAMILY){
                   is_rhs_transposed = true;
-                  rhs = (detail::mapped_matrix const *)mapping_[i][std::make_pair(iit->rhs_.node_index_,detail::LHS_NODE_TYPE)].get();
+                  rhs = (detail::mapped_matrix const *)mapping_[i][std::make_pair(iit->rhs_.node_index_,detail::RHS_NODE_TYPE)].get();
                 }
                 else{
-                  rhs = (detail::mapped_matrix const *)mapping_[i][std::make_pair(j, detail::LHS_NODE_TYPE)].get();
-                  is_lhs_transposed = false;
+                  rhs = (detail::mapped_matrix const *)mapping_[i][std::make_pair(j, detail::RHS_NODE_TYPE)].get();
+                  is_rhs_transposed = false;
                 }
 
               }
@@ -503,8 +503,10 @@ namespace viennacl{
             unsigned int upper_bound = is_lhs_transposed?ks_lhs:ms_lhs;
             for(unsigned int m=0; m<upper_bound; ++m){
               stream << "__local " << lhs_value_scalartype << "* ptr_lhs_" << m << " = lhs_buf + " ;
-              if(is_lhs_transposed) stream << m*local_lhs_size2 << " + " << offset_m ;
-              else stream << "(" << offset_m << "+" << m << ")" << "*" << local_lhs_size2 ;
+              if(is_lhs_transposed)
+                stream << m*local_lhs_size2 << " + " << offset_m ;
+              else
+                stream << "(" << offset_m << "+" << m << ")" << "*" << local_lhs_size2 ;
               stream << ";" << std::endl;
             }
           }

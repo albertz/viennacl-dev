@@ -155,15 +155,15 @@ int test( Epsilon const& epsilon) {
         CHECK_RESULT(cy,y,y=A*x)
     }
 
-//    {
-//        std::cout << "x = trans(A)*y..." << std::endl;
-//        cx     =  ublas::prod(trans(cA),cy);
-//        generator::custom_operation op;
-//        op.add(dv_t(x) = generator::prod(trans(dm_t(A)),dv_t(y)));
-//        op.execute();
-//        viennacl::backend::finish();
-//        CHECK_RESULT(cx,x,x=trans(A)*y)
-//    }
+    {
+        std::cout << "x = trans(A)*y..." << std::endl;
+        cy     =  ublas::prod(trans(cA),cx);
+        generator::code_generator generator;
+        generator.add_statement(viennacl::scheduler::statement(y, viennacl::op_assign(), viennacl::linalg::prod(trans(A),x)));
+        generator::enqueue(generator);
+        viennacl::backend::finish();
+        CHECK_RESULT(cx,x,x=trans(A)*y)
+    }
 
 //    {
 //        std::cout << "y = reduce_rows<max>(A)..." << std::endl;

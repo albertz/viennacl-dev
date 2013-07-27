@@ -111,6 +111,8 @@ namespace viennacl
       template <> struct op_type_info<op_norm_1                  > { enum { id = OPERATION_UNARY_NORM_1_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
       template <> struct op_type_info<op_norm_2                  > { enum { id = OPERATION_UNARY_NORM_2_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
       template <> struct op_type_info<op_norm_inf                > { enum { id = OPERATION_UNARY_NORM_INF_TYPE, family = OPERATION_UNARY_TYPE_FAMILY }; };
+      template <> struct op_type_info<op_trans                   > { enum { id = OPERATION_UNARY_TRANS_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
+
 
       // binary operations
       template <> struct op_type_info<op_assign>                   { enum { id = OPERATION_BINARY_ASSIGN_TYPE,       family = OPERATION_BINARY_TYPE_FAMILY }; };

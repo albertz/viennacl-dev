@@ -79,7 +79,7 @@ namespace viennacl
 
   /** @brief Represents a matrix consisting of zeros only. */
   template <typename SCALARTYPE>
-  class zero_matrix
+  class zero_matrix :  public symbolic_matrix_base<SCALARTYPE>
   {
       typedef symbolic_matrix_base<SCALARTYPE> base_type;
     public:
@@ -90,7 +90,7 @@ namespace viennacl
 
   /** @brief Represents a matrix consisting of scalars 's' only, i.e. m(i,j) = s for all i,j.*/
   template <typename SCALARTYPE>
-  class scalar_matrix
+  class scalar_matrix :  public symbolic_matrix_base<SCALARTYPE>
   {
       typedef symbolic_matrix_base<SCALARTYPE> base_type;
     public:

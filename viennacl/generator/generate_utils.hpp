@@ -51,6 +51,7 @@ namespace viennacl{
         // unary expression
         switch(type){
           case OPERATION_UNARY_ABS_TYPE : return "abs";
+          case OPERATION_UNARY_TRANS_TYPE : return "trans";
           case OPERATION_BINARY_ASSIGN_TYPE : return "=";
           case OPERATION_BINARY_ADD_TYPE : return "+";
           case OPERATION_BINARY_INNER_PROD_TYPE : return "iprod";

@@ -127,59 +127,6 @@ int test_prod(Epsilon const& epsilon,
    int retval = EXIT_SUCCESS;
    NumericT act_diff = 0;
 
-//   std::cout << "Testing C = trans(A) * B ..." << std::endl;
-//   {
-//       C     = boost::numeric::ublas::prod(trans(A_trans), B);
-//       viennacl::generator::custom_operation op;
-//       op.add(vcl_C = viennacl::generator::prod(trans(vcl_A_trans),vcl_B));
-//       op.execute();
-//       viennacl::backend::finish();
-//       act_diff = fabs(diff(C, vcl_C.get()));
-//       if( act_diff > epsilon )
-//       {
-//         std::cout << "# Error at operation: matrix-matrix product" << std::endl;
-//         std::cout << "  diff: " << act_diff << std::endl;
-//         retval = EXIT_FAILURE;
-//       }
-//       else std::cout << "Test C = trans(A) * B passed!" << std::endl;
-//   }
-
-//   std::cout << "Testing C = A * trans(B) ..." << std::endl;
-//   {
-//       C     = boost::numeric::ublas::prod(A,trans(B_trans));
-//       viennacl::generator::custom_operation op;
-//       op.add(vcl_C = viennacl::generator::prod(vcl_A,trans(vcl_B_trans)));
-//       op.execute();
-//       viennacl::backend::finish();
-//       act_diff = fabs(diff(C, vcl_C.get()));
-//       if( act_diff > epsilon )
-//       {
-//         std::cout << "# Error at operation: matrix-matrix product" << std::endl;
-//         std::cout << "  diff: " << act_diff << std::endl;
-//         retval = EXIT_FAILURE;
-//       }
-//       else std::cout << "Test C = A * trans(B) passed!" << std::endl;
-//   }
-
-//   std::cout << "Testing C = trans(A) * trans(B) ..." << std::endl;
-//   {
-//       C     = boost::numeric::ublas::prod(trans(A_trans), trans(B_trans));
-//       viennacl::generator::custom_operation op;
-//       op.add(vcl_C = viennacl::generator::prod(trans(vcl_A_trans),trans(vcl_B_trans)));
-//       op.execute();
-//       viennacl::backend::finish();
-//       act_diff = fabs(diff(C, vcl_C.get()));
-//       if( act_diff > epsilon )
-//       {
-//         std::cout << "# Error at operation: matrix-matrix product" << std::endl;
-//         std::cout << "  diff: " << act_diff << std::endl;
-//         retval = EXIT_FAILURE;
-//       }
-//       else std::cout << "Test C = trans(A) * trans(B) passed!" << std::endl;
-//   }
-
-
-
    std::cout << "Testing C = A * B ..." << std::endl;
    {
        C     = viennacl::linalg::prod(A, B);
@@ -198,6 +145,61 @@ int test_prod(Epsilon const& epsilon,
        else
          std::cout << "Test C = A * B passed!" << std::endl;
    }
+
+
+   std::cout << "Testing C = trans(A) * B ..." << std::endl;
+   {
+       C     = boost::numeric::ublas::prod(trans(A_trans), B);
+       viennacl::generator::code_generator op;
+       op.add_statement(viennacl::scheduler::statement(vcl_C, viennacl::op_assign(), viennacl::linalg::prod(trans(vcl_A_trans),vcl_B)));
+       viennacl::generator::enqueue(op);
+       viennacl::backend::finish();
+       act_diff = fabs(diff(C, vcl_C));
+       if( act_diff > epsilon )
+       {
+         std::cout << "# Error at operation: matrix-matrix product" << std::endl;
+         std::cout << "  diff: " << act_diff << std::endl;
+         retval = EXIT_FAILURE;
+       }
+       else std::cout << "Test C = trans(A) * B passed!" << std::endl;
+   }
+
+   std::cout << "Testing C = A * trans(B) ..." << std::endl;
+   {
+       C     = boost::numeric::ublas::prod(A,trans(B_trans));
+       viennacl::generator::code_generator op;
+       op.add_statement(viennacl::scheduler::statement(vcl_C, viennacl::op_assign(), viennacl::linalg::prod(vcl_A,trans(vcl_B_trans))));
+       viennacl::generator::enqueue(op);
+       viennacl::backend::finish();
+       act_diff = fabs(diff(C, vcl_C));
+       if( act_diff > epsilon )
+       {
+         std::cout << "# Error at operation: matrix-matrix product" << std::endl;
+         std::cout << "  diff: " << act_diff << std::endl;
+         retval = EXIT_FAILURE;
+       }
+       else std::cout << "Test C = A * trans(B) passed!" << std::endl;
+   }
+
+   std::cout << "Testing C = trans(A) * trans(B) ..." << std::endl;
+   {
+       C     = boost::numeric::ublas::prod(trans(A_trans), trans(B_trans));
+       viennacl::generator::code_generator op;
+       op.add_statement(viennacl::scheduler::statement(vcl_C, viennacl::op_assign(), viennacl::linalg::prod(trans(vcl_A_trans),trans(vcl_B_trans))));
+       viennacl::generator::enqueue(op);
+       viennacl::backend::finish();
+       act_diff = fabs(diff(C, vcl_C));
+       if( act_diff > epsilon )
+       {
+         std::cout << "# Error at operation: matrix-matrix product" << std::endl;
+         std::cout << "  diff: " << act_diff << std::endl;
+         retval = EXIT_FAILURE;
+       }
+       else std::cout << "Test C = trans(A) * trans(B) passed!" << std::endl;
+   }
+
+
+
 
 
    return retval;
