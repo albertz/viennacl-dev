@@ -28,6 +28,7 @@
 
 #include "viennacl/scheduler/forwards.h"
 
+#include "viennacl/generator/mapped_types.hpp"
 #include "viennacl/generator/generate_utils.hpp"
 #include "viennacl/generator/utils.hpp"
 
@@ -152,6 +153,14 @@ namespace viennacl{
         matrix_saxpy(template_base::statements_type const & s, profile const & p) : template_base(s,  profile_), profile_(p){ }
 
         void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const {
+
+          for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it){
+            for(detail::mapping_type::iterator iit = it->begin() ; iit != it->end() ; ++iit){
+              if(detail::mapped_matrix * p = dynamic_cast<detail::mapped_matrix*>(iit->second.get()))
+                p->bind_sizes("M","N");
+            }
+         }
+
           stream << "for(unsigned int i = get_global_id(0) ; i < M ; i += get_global_size(0))" << std::endl;
           stream << "{" << std::endl;
           stream.inc_tab();
@@ -171,7 +180,7 @@ namespace viennacl{
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             std::string str;
             detail::traverse(it->array(), detail::expression_generation_traversal(std::make_pair("i", "j"), str, mapping_[i++]), false);
-            stream << str << std::endl;
+            stream << str << ";" << std::endl;
           }
 
           //Writes back

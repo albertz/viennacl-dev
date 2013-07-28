@@ -139,25 +139,26 @@ int test_vector ( Epsilon const& epsilon) {
         CHECK_RESULT(cw, w, w = x + y);
     }
 
-//    {
-//        std::cout << "x = w + y ..." << std::endl;
-//        cx = cw + cy;
-//        generator::custom_operation op;
-//        op.add(vec(x) = vec(w) + vec(y));
-//        op.execute();
-//        viennacl::backend::finish();
-//        CHECK_RESULT(cw, w, x = w + y);
-//    }
+    {
+        std::cout << "y = w + x ..." << std::endl;
+        cy = cw + cx;
+        generator::code_generator gen;
+        gen.add_statement(viennacl::scheduler::statement(y, viennacl::op_assign(), w + x));
+        viennacl::generator::enqueue(gen);
+        viennacl::backend::finish();
+        CHECK_RESULT(cy, y, y = w + x);
+    }
 
-//    {
-//        std::cout << "y = w + x ..." << std::endl;
-//        cy = cw + cx;
-//        generator::custom_operation op;
-//        op.add(vec(y) = vec(w) + vec(x));
-//        op.execute();
-//        viennacl::backend::finish();
-//        CHECK_RESULT(cx, x, y = w + x);
-//    }
+
+    {
+        std::cout << "x = y + w ..." << std::endl;
+        cx = cy + cw;
+        generator::code_generator gen;
+        gen.add_statement(viennacl::scheduler::statement(x, viennacl::op_assign(), y + w));
+        viennacl::generator::enqueue(gen);
+        viennacl::backend::finish();
+        CHECK_RESULT(cx, x, x = y + w);
+    }
 
 
 //    {
@@ -295,6 +296,15 @@ int test_matrix ( Epsilon const& epsilon) {
     viennacl::copy(cx,x);
     viennacl::copy(cPattern,pattern);
 
+    {
+      std::cout << "C = A + B ..." << std::endl;
+      cC     = ( cA + cB );
+      generator::code_generator gen;
+      gen.add_statement(viennacl::scheduler::statement(C, viennacl::op_assign(), A + B));
+      generator::enqueue(gen);
+      viennacl::backend::finish();
+      CHECK_RESULT(cC, C, C=A+B)
+    }
 
 //    {
 //        std::cout << "C = diag(x) ..." << std::endl;
@@ -320,16 +330,6 @@ int test_matrix ( Epsilon const& epsilon) {
 //        op.execute();
 //        viennacl::backend::finish();
 //        CHECK_RESULT(cx,x, x = diag(A));
-//    }
-
-//    {
-//        std::cout << "C = A + B ..." << std::endl;
-//        cC     = ( cA + cB );
-//        generator::custom_operation op;
-//        op.add(mat(C) = mat(A) + mat(B));
-//        op.execute();
-//        viennacl::backend::finish();
-//        CHECK_RESULT(cC, C, C=A+B)
 //    }
 
 //    {

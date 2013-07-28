@@ -123,13 +123,14 @@ namespace viennacl{
         void core(std::size_t kernel_id, utils::kernel_generation_stream& stream) const{
 
           std::vector<detail::mapped_vector_reduction*> exprs;
-          for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
+          for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it){
             for(detail::mapping_type::iterator iit = it->begin() ; iit != it->end() ; ++iit){
               if(detail::mapped_vector_reduction * p = dynamic_cast<detail::mapped_vector_reduction*>(iit->second.get()))
                 exprs.push_back(p);
               if(detail::mapped_matrix * p = dynamic_cast<detail::mapped_matrix*>(iit->second.get()))
                 p->bind_sizes("M","N");
             }
+         }
 
           std::size_t lsize1 = profile_.m_;
           std::size_t lsize2 = profile_.k_+1;
