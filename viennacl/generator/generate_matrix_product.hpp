@@ -190,18 +190,18 @@ namespace viennacl{
             for(unsigned int k = 0 ; k < ks_rhs ; ++k){
               stream << "__global " << aligned_scalartype_ << " * " << "ptr_rhs_" << k << " = " << mat.name() << " + " ;
               if(is_transposed)
-                stream<< mat.offset(utils::to_string(k) + " + " + offset_n + " +  get_group_id(1)*" + utils::to_string(nl_rhs),"0");
+                stream<< mat.offset(std::make_pair(utils::to_string(k) + " + " + offset_n + " +  get_group_id(1)*" + utils::to_string(nl_rhs),"0"));
               else
-                stream << mat.offset(utils::to_string(k),offset_n + " +  get_group_id(1)*" + utils::to_string(nl_rhs));
+                stream << mat.offset(std::make_pair(utils::to_string(k),offset_n + " +  get_group_id(1)*" + utils::to_string(nl_rhs)));
               stream << ";" << std::endl;
             }
           else
             for(unsigned int n = 0 ; n < ns_rhs ; ++n){
               stream << "__global " << aligned_scalartype_ << " * " << "ptr_rhs_" << n << " = " << mat.name() << " +  " ;
               if(is_transposed)
-                stream << mat.offset(offset_n + " +  get_group_id(1)*" + utils::to_string(nl_rhs), utils::to_string(n));
+                stream << mat.offset(std::make_pair(offset_n + " +  get_group_id(1)*" + utils::to_string(nl_rhs), utils::to_string(n)));
               else
-                stream << mat.offset("0",offset_n + " +  get_group_id(1)*" + utils::to_string(nl_rhs) + " + " + utils::to_string(n));
+                stream << mat.offset(std::make_pair("0",offset_n + " +  get_group_id(1)*" + utils::to_string(nl_rhs) + " + " + utils::to_string(n)));
               stream << ";" << std::endl;
             }
         }
@@ -229,9 +229,9 @@ namespace viennacl{
               std::string ptr_name = "ptr_lhs_" + utils::to_string(m);
               stream << "__global " << aligned_scalartype_ << " * " << ptr_name << " = " << mat.name() << " + ";
               if(is_transposed)
-                stream << mat.offset(utils::to_string(m),"get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset_m );
+                stream << mat.offset(std::make_pair(utils::to_string(m),"get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset_m ));
               else
-                stream << mat.offset("get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset_m + "+" + utils::to_string(m),"0");
+                stream << mat.offset(std::make_pair("get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset_m + "+" + utils::to_string(m),"0"));
               stream << ";" << std::endl;
             }
           }
@@ -240,9 +240,9 @@ namespace viennacl{
               std::string ptr_name = "ptr_lhs_" + utils::to_string(k);
               stream << "__global " << aligned_scalartype_<< " * " << ptr_name << " = " << mat.name() << " + " ;
               if(is_transposed)
-                stream << mat.offset("0", utils::to_string(k) + "+" + "get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset_m );
+                stream << mat.offset(std::make_pair("0", utils::to_string(k) + "+" + "get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset_m ));
               else
-                stream << mat.offset( "get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset_m, utils::to_string(k));
+                stream << mat.offset(std::make_pair( "get_group_id(0)*" + utils::to_string(ml_lhs) + "+" + offset_m, utils::to_string(k)));
               stream << ";" << std::endl;
             }
           }
@@ -464,11 +464,11 @@ namespace viennacl{
           std::string block_num = helper_variable(stream,true,"unsigned int", "block_num", (is_lhs_transposed?size1_lhs:size2_lhs) + '/' + utils::to_string(kl_lhs));
 
           //Declaration of pointers and/or offsets to result, rhs, lhs.
-          stream << "__global " << aligned_scalartype_ << "* res_ptr = " <<  assigned->name() << " + " << assigned->offset("get_global_id(0)*" + utils::to_string(ms_res), "get_global_id(1)*" + utils::to_string(ns_res)) << ";" << std::endl;
+          stream << "__global " << aligned_scalartype_ << "* res_ptr = " <<  assigned->name() << " + " << assigned->offset(std::make_pair("get_global_id(0)*" + utils::to_string(ms_res), "get_global_id(1)*" + utils::to_string(ns_res))) << ";" << std::endl;
 
           if(use_RHS_shared){
-            if(is_rhs_transposed) stream << "unsigned int offsetRHS = " << rhs->offset(" get_group_id(1)*" + utils::to_string(nl_rhs),"0") << ";" << std::endl;
-            else stream << "unsigned int offsetRHS = " << rhs->offset("0", " get_group_id(1)*" + utils::to_string(nl_rhs)) << ";" << std::endl;
+            if(is_rhs_transposed) stream << "unsigned int offsetRHS = " << rhs->offset(std::make_pair(" get_group_id(1)*" + utils::to_string(nl_rhs),"0")) << ";" << std::endl;
+            else stream << "unsigned int offsetRHS = " << rhs->offset(std::make_pair("0", " get_group_id(1)*" + utils::to_string(nl_rhs))) << ";" << std::endl;
           }
           else{
             if(is_rhs_transposed)
@@ -478,8 +478,8 @@ namespace viennacl{
           }
 
           if(use_LHS_shared){
-            if(is_lhs_transposed) stream << "unsigned int offsetLHS = " << lhs->offset("0", "get_group_id(0)*" + utils::to_string(ml_lhs)) << ";" << std::endl;
-            else stream << "unsigned int offsetLHS = " << lhs->offset("get_group_id(0)*" + utils::to_string(ml_lhs), "0") << ";" << std::endl;
+            if(is_lhs_transposed) stream << "unsigned int offsetLHS = " << lhs->offset(std::make_pair("0", "get_group_id(0)*" + utils::to_string(ml_lhs))) << ";" << std::endl;
+            else stream << "unsigned int offsetLHS = " << lhs->offset(std::make_pair("get_group_id(0)*" + utils::to_string(ml_lhs), "0")) << ";" << std::endl;
           }
           else{
             if(is_lhs_transposed)

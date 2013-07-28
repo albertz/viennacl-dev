@@ -28,6 +28,7 @@
 
 #include "viennacl/scheduler/forwards.h"
 
+#include "viennacl/generator/mapped_types.hpp"
 #include "viennacl/generator/generate_utils.hpp"
 #include "viennacl/generator/utils.hpp"
 
@@ -123,9 +124,12 @@ namespace viennacl{
 
           std::vector<detail::mapped_vector_reduction*> exprs;
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
-            for(detail::mapping_type::iterator iit = it->begin() ; iit != it->end() ; ++iit)
+            for(detail::mapping_type::iterator iit = it->begin() ; iit != it->end() ; ++iit){
               if(detail::mapped_vector_reduction * p = dynamic_cast<detail::mapped_vector_reduction*>(iit->second.get()))
                 exprs.push_back(p);
+              if(detail::mapped_matrix * p = dynamic_cast<detail::mapped_matrix*>(iit->second.get()))
+                p->bind_sizes("M","N");
+            }
 
           std::size_t lsize1 = profile_.m_;
           std::size_t lsize2 = profile_.k_+1;
@@ -133,7 +137,10 @@ namespace viennacl{
           bool is_lhs_transposed = exprs.front()->lhs().array_->at(exprs.front()->lhs().index_.first).op_type_==scheduler::OPERATION_UNARY_TRANS_TYPE;
 
 
-          detail::mapped_vector_reduction* first_expr = exprs.front();
+          std::string size1 = "M", size2 = "N";
+          if(is_lhs_transposed)
+            std::swap(size1, size2);
+
           for(std::vector<detail::mapped_vector_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
             stream << "__local " <<  (*it)->scalartype() << " buf" << std::distance(exprs.begin(), it) << '[' << lsize1*lsize2 << "];" << std::endl;
           }
@@ -142,36 +149,33 @@ namespace viennacl{
           stream << "unsigned int lid1 = get_local_id(1);" << std::endl;
 
 
-          if(is_lhs_transposed)
-            stream << "for(unsigned int r = get_global_id(0) ; r < N ; r += get_global_size(0)){" << std::endl;
-          else
-            stream << "for(unsigned int r = get_global_id(0) ; r < M ; r += get_global_size(0)){" << std::endl;
+          stream << "for(unsigned int r = get_global_id(0) ; r < " << size1 << " ; r += get_global_size(0)){" << std::endl;
           stream.inc_tab();
 
           for(std::size_t k = 0 ; k < exprs.size() ; ++k)
             stream << scalartype << " sum" << k << " = 0;" << std::endl;
 
-          if(is_lhs_transposed)
-            stream << "for(unsigned int c = get_local_id(1) ; c < M ; c += get_local_size(1)){" << std::endl;
-          else
-            stream << "for(unsigned int c = get_local_id(1) ; c < N ; c += get_local_size(1)){" << std::endl;
+          stream << "for(unsigned int c = get_local_id(1) ; c < " << size2 << " ; c += get_local_size(1)){" << std::endl;
           stream.inc_tab();
 
           std::set<std::string>  fetched;
 
           for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            detail::traverse(*exprs[k]->lhs().array_, detail::fetch_traversal(fetched, "r*N+c", stream, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
+            if(is_lhs_transposed)
+              detail::traverse(*exprs[k]->lhs().array_, detail::fetch_traversal(fetched, std::make_pair("c","r"), stream, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
+            else
+              detail::traverse(*exprs[k]->lhs().array_, detail::fetch_traversal(fetched, std::make_pair("r","c"), stream, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
 
           for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            detail::traverse(*exprs[k]->rhs().array_, detail::fetch_traversal(fetched, "c", stream, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
+            detail::traverse(*exprs[k]->rhs().array_, detail::fetch_traversal(fetched, std::make_pair("c","0"), stream, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
 
 
           //Update sums;
           for(std::size_t k = 0 ; k < exprs.size() ; ++k){
             std::string expr_str;
-            detail::traverse(*exprs[k]->lhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
+            detail::traverse(*exprs[k]->lhs().array_, detail::expression_generation_traversal(std::make_pair("r","c"), expr_str, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
             expr_str += "*";
-            detail::traverse(*exprs[k]->rhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
+            detail::traverse(*exprs[k]->rhs().array_, detail::expression_generation_traversal(std::make_pair("c","0"), expr_str, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
             stream << " sum" << k << " += "  << expr_str << ";" << std::endl;
           }
 
@@ -208,7 +212,7 @@ namespace viennacl{
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             std::string str;
-            detail::traverse(it->array(), detail::expression_generation_traversal("r", str, mapping_[i++]), false);
+            detail::traverse(it->array(), detail::expression_generation_traversal(std::make_pair("r","0"), str, mapping_[i++]), false);
             stream << str << ";" << std::endl;
           }
           stream.dec_tab();

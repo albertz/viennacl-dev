@@ -53,8 +53,8 @@ namespace viennacl{
 
       template<class TraversalFunctor>
       void traverse(scheduler::statement::container_type const & array, TraversalFunctor const & fun, bool deep_traversal, index_info const & key = std::make_pair(0, PARENT_TYPE));
-      std::string generate(std::string const & index, mapped_container const & s);
-      void fetch(std::string const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream, mapped_container & s);
+      std::string generate(std::pair<std::string, std::string> const & index, mapped_container const & s);
+      void fetch(std::pair<std::string, std::string> const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream, mapped_container & s);
       const char * generate(scheduler::operation_node_type arg);
 
 

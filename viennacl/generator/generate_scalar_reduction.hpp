@@ -163,17 +163,17 @@ namespace viennacl{
           std::set<std::string>  fetched;
 
           for(std::size_t k = 0 ; k < exprs.size() ; ++k){
-            detail::traverse(*exprs[k]->lhs().array_, detail::fetch_traversal(fetched, "i", stream, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
-            detail::traverse(*exprs[k]->rhs().array_, detail::fetch_traversal(fetched, "i", stream, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
+            detail::traverse(*exprs[k]->lhs().array_, detail::fetch_traversal(fetched, std::make_pair("i", "0"), stream, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
+            detail::traverse(*exprs[k]->rhs().array_, detail::fetch_traversal(fetched, std::make_pair("i", "0"), stream, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
           }
 
 
           //Update sums;
           for(std::size_t k = 0 ; k < exprs.size() ; ++k){
             std::string expr_str;
-            detail::traverse(*exprs[k]->lhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
+            detail::traverse(*exprs[k]->lhs().array_, detail::expression_generation_traversal(std::make_pair("i", "0"), expr_str, *exprs[k]->lhs().mapping_), false, exprs[k]->lhs().index_);
             expr_str += "*";
-            detail::traverse(*exprs[k]->rhs().array_, detail::expression_generation_traversal("", expr_str, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
+            detail::traverse(*exprs[k]->rhs().array_, detail::expression_generation_traversal(std::make_pair("i", "0"), expr_str, *exprs[k]->rhs().mapping_), false, exprs[k]->rhs().index_);
             stream << " sum" << k << " += "  << expr_str << ";" << std::endl;
           }
 
@@ -245,7 +245,7 @@ namespace viennacl{
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             std::string str;
-            detail::traverse(it->array(), detail::expression_generation_traversal("0", str, mapping_[i++]), false);
+            detail::traverse(it->array(), detail::expression_generation_traversal(std::make_pair("0", "0"), str, mapping_[i++]), false);
             stream << str << ";" << std::endl;
           }
 

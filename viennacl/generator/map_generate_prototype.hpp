@@ -58,6 +58,7 @@ namespace viennacl{
           template<class T>
           result_type binary_leaf(unsigned int i, statement_node const & node,  statement::container_type const * array, mapping_type const * mapping){
             T * p = new T("float");
+
             p->lhs_.array_ = array;
             p->lhs_.index_ = get_new_key(node.lhs_type_family_, i, node.lhs_.node_index_, LHS_NODE_TYPE);
             p->lhs_.mapping_ = mapping;
@@ -133,7 +134,7 @@ namespace viennacl{
       };
 
       void map_statement(scheduler::statement const & statement, std::map<void *, std::size_t> & memory, unsigned int & current_arg, mapping_type & mapping){
-          scheduler::statement::container_type expr = statement.array();
+          scheduler::statement::container_type const & expr = statement.array();
           for(std::size_t i = 0 ; i < expr.size() ; ++i){
             scheduler::statement_node node = expr[i];
 

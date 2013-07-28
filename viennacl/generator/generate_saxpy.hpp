@@ -85,19 +85,19 @@ namespace viennacl{
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             for(detail::mapping_type::reverse_iterator it2 = it->rbegin() ; it2 != it->rend() ; ++it2)
               if(detail::mapped_handle * p = dynamic_cast<detail::mapped_handle *>(it2->second.get()))
-                p->fetch( "i", fetched, stream);
+                p->fetch( std::make_pair("i","0"), fetched, stream);
 
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
               std::string str;
-              detail::traverse(it->array(), detail::expression_generation_traversal("", str, mapping_[i++]), false);
+              detail::traverse(it->array(), detail::expression_generation_traversal(std::make_pair("i","0"), str, mapping_[i++]), false);
               stream << str << ";" << std::endl;
           }
 
           //Writes back
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             if(detail::mapped_handle * p = dynamic_cast<detail::mapped_handle *>(it->at(std::make_pair(0,detail::LHS_NODE_TYPE)).get()))
-              p->write_back( "i", fetched, stream);
+              p->write_back( std::make_pair("i", "0"), fetched, stream);
 
           stream.dec_tab();
           stream << "}" << std::endl;
@@ -165,19 +165,19 @@ namespace viennacl{
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             for(detail::mapping_type::reverse_iterator it2 = it->rbegin() ; it2 != it->rend() ; ++it2)
               if(detail::mapped_matrix * p = dynamic_cast<detail::mapped_matrix *>(it2->second.get()))
-                p->fetch(get_offset(p),fetched, stream);
+                p->fetch(std::make_pair("i", "j"),fetched, stream);
 
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             std::string str;
-            detail::traverse(it->array(), detail::expression_generation_traversal("", str, mapping_[i++]), false);
+            detail::traverse(it->array(), detail::expression_generation_traversal(std::make_pair("i", "j"), str, mapping_[i++]), false);
             stream << str << std::endl;
           }
 
           //Writes back
           for(std::vector<detail::mapping_type>::iterator it = mapping_.begin() ; it != mapping_.end() ; ++it)
             if(detail::mapped_matrix * p = dynamic_cast<detail::mapped_matrix *>(it->at(std::make_pair(0,detail::LHS_NODE_TYPE)).get()))
-              p->write_back(get_offset(p), fetched, stream);
+              p->write_back(std::make_pair("i", "j"), fetched, stream);
 
           stream.dec_tab();
           stream << "}" << std::endl;
