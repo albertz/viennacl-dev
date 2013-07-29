@@ -25,6 +25,8 @@
 
 #include <sstream>
 
+#include "viennacl/ocl/forwards.h"
+
 #include "viennacl/traits/size.hpp"
 
 #include "viennacl/scheduler/forwards.h"
@@ -139,6 +141,12 @@ namespace viennacl{
           typedef std::size_t result_type;
           template<class T>
           result_type operator()(T const &t) const { return viennacl::traits::size(t); }
+      };
+
+      struct handle_fun{
+          typedef cl_mem result_type;
+          template<class T>
+          result_type operator()(T const &t) const { return t.handle().opencl_handle(); }
       };
 
       struct size1_fun{

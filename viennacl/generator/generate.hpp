@@ -51,40 +51,84 @@ namespace viennacl{
       MATRIX_SAXPY,
       SCALAR_REDUCE,
       VECTOR_REDUCE,
-      MATRIX_PRODUCT
+      MATRIX_PRODUCT,
+      INVALID_EXPRESSION
     };
 
-    unsigned int count(typename statement::container_type const & expr, operation_node_type op_type){
-      unsigned int res = 0;
-      for(typename statement::container_type::const_iterator it = expr.begin() ; it != expr.end() ; ++it)
-        res += static_cast<unsigned int>(it->op_type_==op_type);
-      return res;
+    bool is_invalid(statement::container_type const & expr, unsigned int & n_scalar_reduce, unsigned int & n_vector_reduce, unsigned int & n_mat_mat_prod, unsigned int root_index = 0, bool is_in_prod = false){
+      statement_node const & node = expr[root_index];
+
+      //Nested prod not allowed
+      if(node.op_type_ == OPERATION_BINARY_INNER_PROD_TYPE
+       ||node.op_type_ == OPERATION_BINARY_MAT_VEC_PROD_TYPE
+       ||node.op_type_ == OPERATION_BINARY_MAT_MAT_PROD_TYPE)
+      {
+        if(is_in_prod)
+          return true;
+        else
+          is_in_prod = true;
+      }
+
+
+      if(node.op_type_ == OPERATION_BINARY_INNER_PROD_TYPE)
+        ++n_scalar_reduce;
+      if(node.op_type_ == OPERATION_BINARY_MAT_VEC_PROD_TYPE)
+        ++n_vector_reduce;
+      if(node.op_type_ == OPERATION_BINARY_MAT_MAT_PROD_TYPE)
+        ++n_mat_mat_prod;
+
+      //More than one n_* is nonzero
+      if( (n_scalar_reduce>0)
+          +(n_vector_reduce>0)
+          +(n_mat_mat_prod>0) > 1)
+        return true;
+
+      //Only one mat-mat prod allowed:
+      if(n_mat_mat_prod>1)
+      {
+          return true;
+      }
+
+      if(node.lhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY)
+        if(is_invalid(expr, n_scalar_reduce, n_vector_reduce, n_mat_mat_prod, node.lhs_.node_index_, is_in_prod)==true)
+          return true;
+
+      if(node.rhs_type_family_==scheduler::COMPOSITE_OPERATION_FAMILY)
+        if(is_invalid(expr, n_scalar_reduce, n_vector_reduce, n_mat_mat_prod, node.rhs_.node_index_, is_in_prod)==true)
+          return true;
+
+      return false;
     }
 
-    expression_type_family type_family_of(typename statement::container_type const & expr){
+
+      expression_type_family type_family_of(typename statement::container_type const & expr){
+      unsigned int n_scalar_reduce = 0, n_vector_reduce = 0, n_matrix_matrix_product = 0;
+      if(is_invalid(expr, n_scalar_reduce, n_vector_reduce, n_matrix_matrix_product)){
+        return INVALID_EXPRESSION;
+      }
       switch(expr[0].lhs_type_family_){
         case VECTOR_TYPE_FAMILY :
-          if(count(expr, OPERATION_BINARY_MAT_VEC_PROD_TYPE))
+          if(n_vector_reduce>0)
             return VECTOR_REDUCE;
           else
             return VECTOR_SAXPY;
         case MATRIX_ROW_TYPE_FAMILY :
-          if(count(expr, OPERATION_BINARY_MAT_MAT_PROD_TYPE))
+          if(n_matrix_matrix_product>0)
             return MATRIX_PRODUCT;
           else
             return MATRIX_SAXPY;
         case MATRIX_COL_TYPE_FAMILY :
-          if(count(expr, OPERATION_BINARY_MAT_MAT_PROD_TYPE))
+          if(n_matrix_matrix_product>0)
             return MATRIX_PRODUCT;
           else
             return MATRIX_SAXPY;
         case SCALAR_TYPE_FAMILY :
-          if(count(expr, OPERATION_BINARY_INNER_PROD_TYPE))
+          if(n_scalar_reduce>0)
             return SCALAR_REDUCE;
           else
             return SCALAR_SAXPY;
         default:
-          throw "not implemented";
+          return INVALID_EXPRESSION;
       }
     }
 
@@ -136,8 +180,12 @@ namespace viennacl{
           statements_.reserve(16);
         }
 
-        bool add_statement(scheduler::statement const & s) {
+        bool add(scheduler::statement const & s) {
           expression_type_family expr_type = type_family_of(s.array());
+
+          if(expr_type==INVALID_EXPRESSION)
+            return false;
+
           if(statements_.empty())
             statements_.push_back(std::make_pair(expr_type,template_base::statements_type(1,s)));
           else

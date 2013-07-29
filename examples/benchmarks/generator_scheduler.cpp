@@ -22,8 +22,8 @@
 */
 
 
-#define VIENNACL_DEBUG_ALL
-#define VIENNACL_DEBUG_BUILD
+//#define VIENNACL_DEBUG_ALL
+//#define VIENNACL_DEBUG_BUILD
 
 #ifndef NDEBUG
  #define NDEBUG
@@ -92,13 +92,14 @@ int run_benchmark()
 
   {
     viennacl::generator::code_generator generator;
-    generator.add_statement(viennacl::scheduler::statement(vcl_mat1, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat2, vcl_mat3)));
+//    std::cout << generator.add(viennacl::scheduler::statement(vcl_mat1, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat2, vcl_mat3) + viennacl::linalg::prod(vcl_mat2, vcl_mat3))) << std::endl;
+    std::cout << generator.add(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), 5.0d*vcl_vec2)) << std::endl;
 //    generator.add_statement(viennacl::scheduler::statement(vcl_vec2, viennacl::op_assign(), viennacl::linalg::prod(vcl_mat1, vcl_vec3)));
 
 //    generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), vcl_vec1 + vcl_vec2));
 //    generator.add_statement(viennacl::scheduler::statement(vcl_vec1, viennacl::op_assign(), vcl_vec1 + vcl_vec3));
 
-    viennacl::generator::enqueue(generator);
+//    viennacl::generator::enqueue(generator);
   }
 
   return 0;

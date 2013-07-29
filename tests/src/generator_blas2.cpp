@@ -149,7 +149,7 @@ int test( Epsilon const& epsilon) {
         std::cout << "y = A*x..." << std::endl;
         cy     =  ublas::prod(cA,cx);
         generator::code_generator generator;
-        generator.add_statement(viennacl::scheduler::statement(y, viennacl::op_assign(), viennacl::linalg::prod(A,x)));
+        generator.add(viennacl::scheduler::statement(y, viennacl::op_assign(), viennacl::linalg::prod(A,x)));
         generator::enqueue(generator);
         viennacl::backend::finish();
         CHECK_RESULT(cy,y,y=A*x)
@@ -159,7 +159,7 @@ int test( Epsilon const& epsilon) {
         std::cout << "x = trans(A)*y..." << std::endl;
         cy     =  ublas::prod(trans(cA),cx);
         generator::code_generator generator;
-        generator.add_statement(viennacl::scheduler::statement(y, viennacl::op_assign(), viennacl::linalg::prod(trans(A),x)));
+        generator.add(viennacl::scheduler::statement(y, viennacl::op_assign(), viennacl::linalg::prod(trans(A),x)));
         generator::enqueue(generator);
         viennacl::backend::finish();
         CHECK_RESULT(cx,x,x=trans(A)*y)

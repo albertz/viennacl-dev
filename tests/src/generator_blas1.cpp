@@ -133,7 +133,7 @@ int test_vector ( Epsilon const& epsilon) {
         std::cout << "w = x + y ..." << std::endl;
         cw = cx + cy;
         generator::code_generator gen;
-        gen.add_statement(viennacl::scheduler::statement(w, viennacl::op_assign(), x + y));
+        gen.add(viennacl::scheduler::statement(w, viennacl::op_assign(), x + y));
         viennacl::generator::enqueue(gen);
         viennacl::backend::finish();
         CHECK_RESULT(cw, w, w = x + y);
@@ -143,7 +143,7 @@ int test_vector ( Epsilon const& epsilon) {
         std::cout << "y = w + x ..." << std::endl;
         cy = cw + cx;
         generator::code_generator gen;
-        gen.add_statement(viennacl::scheduler::statement(y, viennacl::op_assign(), w + x));
+        gen.add(viennacl::scheduler::statement(y, viennacl::op_assign(), w + x));
         viennacl::generator::enqueue(gen);
         viennacl::backend::finish();
         CHECK_RESULT(cy, y, y = w + x);
@@ -154,7 +154,7 @@ int test_vector ( Epsilon const& epsilon) {
         std::cout << "x = y + w ..." << std::endl;
         cx = cy + cw;
         generator::code_generator gen;
-        gen.add_statement(viennacl::scheduler::statement(x, viennacl::op_assign(), y + w));
+        gen.add(viennacl::scheduler::statement(x, viennacl::op_assign(), y + w));
         viennacl::generator::enqueue(gen);
         viennacl::backend::finish();
         CHECK_RESULT(cx, x, x = y + w);
@@ -300,7 +300,7 @@ int test_matrix ( Epsilon const& epsilon) {
       std::cout << "C = A + B ..." << std::endl;
       cC     = ( cA + cB );
       generator::code_generator gen;
-      gen.add_statement(viennacl::scheduler::statement(C, viennacl::op_assign(), A + B));
+      gen.add(viennacl::scheduler::statement(C, viennacl::op_assign(), A + B));
       generator::enqueue(gen);
       viennacl::backend::finish();
       CHECK_RESULT(cC, C, C=A+B)
