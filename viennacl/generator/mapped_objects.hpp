@@ -47,11 +47,9 @@ namespace viennacl{
               scheduler::statement_node const * root_node;
           };
           virtual std::string generate_default(std::pair<std::string, std::string> const & index) const = 0;
-          virtual std::string append_vector_size(std::string const & scalartype, unsigned int) const { return scalartype; }
-
         public:
           mapped_object(std::string const & scalartype) : scalartype_(scalartype){          }
-          virtual std::string & append_kernel_arguments(std::set<std::string> &, std::string & str, unsigned int) const{ return str; }
+          virtual std::string & append_kernel_arguments(std::set<std::string> &, std::string & str) const{ return str; }
           std::string const & scalartype() const { return scalartype_; }
           void access_name(std::string const & str) { access_name_ = str; }
           std::string const & access_name() const { return access_name_; }
@@ -117,7 +115,7 @@ namespace viennacl{
         public:
           mapped_host_scalar(std::string const & scalartype) : mapped_object(scalartype){ }
           std::string const & name() { return name_; }
-          std::string & append_kernel_arguments(std::set<std::string> & already_generated, std::string & str, unsigned int) const{
+          std::string & append_kernel_arguments(std::set<std::string> & already_generated, std::string & str) const{
             if(already_generated.insert(name_).second)
               str += detail::generate_value_kernel_argument(scalartype_, name_);
             return str;
@@ -137,11 +135,27 @@ namespace viennacl{
 
           std::string const & name() const { return name_; }
 
-          void fetch(std::pair<std::string, std::string> const & index, unsigned int vectorization, std::set<std::string> & fetched, utils::kernel_generation_stream & stream) {
+          void set_simd_width(unsigned int val) {
+              simd_width_ = val;
+          }
+
+          unsigned int simd_width() const{
+              return simd_width_;
+          }
+
+          std::string simd_scalartype() const{
+              std::string res = scalartype_;
+              if(simd_width_ > 1)
+                  res+=utils::to_string(simd_width_);
+              return res;
+          }
+
+          void fetch(std::pair<std::string, std::string> const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream) {
             std::string new_access_name = name_ + "_private";
             if(fetched.find(name_)==fetched.end()){
               stream << scalartype_;
-              if(vectorization > 1) stream << vectorization;
+              if(simd_width_ > 1)
+                  stream << simd_width_;
               stream << " " << new_access_name << " = " << generate_default(index) << ';' << std::endl;
               fetched.insert(name_);
             }
@@ -157,9 +171,11 @@ namespace viennacl{
             }
           }
 
-          std::string & append_kernel_arguments(std::set<std::string> & already_generated, std::string & str, unsigned int vector_size) const{
+          std::string & append_kernel_arguments(std::set<std::string> & already_generated, std::string & str) const{
             if(already_generated.insert(name_).second){
-              std::string vector_scalartype = append_vector_size(scalartype_, vector_size);
+              std::string vector_scalartype = scalartype_;
+              if(simd_width_>1)
+                vector_scalartype+=utils::to_string(simd_width_);
               str += detail::generate_pointer_kernel_argument("__global", vector_scalartype, name_);
               append_optional_arguments(str);
             }
@@ -168,6 +184,7 @@ namespace viennacl{
 
         protected:
           std::string name_;
+          unsigned int simd_width_;
       };
 
       /** @brief Mapping of a scalar to a generator class */
@@ -182,13 +199,6 @@ namespace viennacl{
 
       /** @brief Base class for mapping buffer-based objects to a generator class */
       class mapped_buffer : public mapped_handle{
-        protected:
-          std::string append_vector_size(std::string const & scalartype, unsigned int vector_size) const {
-            if(vector_size>1)
-              return scalartype + utils::to_string(vector_size);
-            else
-              return scalartype;
-          }
         public:
           mapped_buffer(std::string const & scalartype) : mapped_handle(scalartype){ }
           virtual std::string generate(std::pair<std::string, std::string> const & index, int vector_element) const{
@@ -296,7 +306,7 @@ namespace viennacl{
           std::string generate_default(std::pair<std::string, std::string> const & /*index*/) const{
             return value_name_;
           }
-          std::string & append_kernel_arguments(std::set<std::string> & /*already_generated*/, std::string & str, unsigned int /*vector_size*/) const{
+          std::string & append_kernel_arguments(std::set<std::string> & /*already_generated*/, std::string & str) const{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
             if(!index_name_.empty())
@@ -315,24 +325,24 @@ namespace viennacl{
           std::string generate_default(std::pair<std::string, std::string> const & /* index */) const{
             return value_name_;
           }
-          std::string & append_kernel_arguments(std::set<std::string> & /*already generated*/, std::string & str, unsigned int /*vector size*/) const{
+          std::string & append_kernel_arguments(std::set<std::string> & /*already generated*/, std::string & str) const{
             if(!value_name_.empty())
               str += detail::generate_value_kernel_argument(scalartype_, value_name_);
             return str;
           }
       };
 
-      static std::string generate(std::pair<std::string, std::string> const & index, int vector_element, mapped_object const & s){
-        return s.generate(index, vector_element);
+      static std::string generate(std::pair<std::string, std::string> const & index, int simd_element, mapped_object const & s){
+        return s.generate(index, simd_element);
       }
 
-      static void fetch(std::pair<std::string, std::string> const & index, unsigned int vectorization, std::set<std::string> & fetched, utils::kernel_generation_stream & stream, mapped_object & s){
+      static void fetch(std::pair<std::string, std::string> const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream, mapped_object & s){
         if(mapped_handle * p = dynamic_cast<mapped_handle  *>(&s))
-          p->fetch(index, vectorization, fetched, stream);
+          p->fetch(index, fetched, stream);
       }
 
-      static std::string & append_kernel_arguments(std::set<std::string> & already_generated, std::string & str, unsigned int vector_size, mapped_object const & s){
-        return s.append_kernel_arguments(already_generated, str, vector_size);
+      static std::string & append_kernel_arguments(std::set<std::string> & already_generated, std::string & str, mapped_object const & s){
+        return s.append_kernel_arguments(already_generated, str);
       }
 
     }

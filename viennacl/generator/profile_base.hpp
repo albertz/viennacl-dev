@@ -64,6 +64,20 @@ namespace viennacl{
           s << csv_representation();
         }
 
+        virtual void initialize_mapping(statements_type const & statements, std::vector<detail::mapping_type> & mapping) const{
+            std::map<void *, std::size_t> memory;
+            unsigned int current_arg = 0;
+            std::size_t i = 0;
+            for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it)
+              detail::traverse(it->first, it->second, detail::map_functor(memory,current_arg,mapping[i++]));
+        }
+
+        virtual void set_simd_width(statements_type::value_type const & /*root*/, detail::mapping_type const & mapping) const{
+            for(detail::mapping_type::const_iterator iit = mapping.begin() ; iit != mapping.end() ; ++iit)
+              if(detail::mapped_handle * p = dynamic_cast<detail::mapped_handle *>(iit->second.get()))
+                p->set_simd_width(simd_width_);
+        }
+
         /** @brief Generates the body of the associated kernel function
          *
          *  @param kernel_id If this profile requires multiple kernel, the index for which the core should be generated
@@ -74,7 +88,7 @@ namespace viennacl{
 
       public:
         /** @brief The constructor */
-        profile_base(unsigned int vectorization, std::size_t local_size_1, std::size_t local_size_2, std::size_t num_kernels) : vector_size_(vectorization), local_size_1_(local_size_1), local_size_2_(local_size_2), num_kernels_(num_kernels){ }
+        profile_base(unsigned int vectorization, std::size_t local_size_1, std::size_t local_size_2, std::size_t num_kernels) : simd_width_(vectorization), local_size_1_(local_size_1), local_size_2_(local_size_2), num_kernels_(num_kernels){ }
 
         /** @brief The destructor */
         virtual ~profile_base(){ }
@@ -82,10 +96,10 @@ namespace viennacl{
         /** @brief Configures the range and enqueues the arguments associated with the profile */
         virtual void configure_range_enqueue_arguments(std::size_t kernel_id, statements_type  const & statements, viennacl::ocl::kernel & k, unsigned int & n_arg) const = 0;
 
-        virtual void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const = 0;
+        virtual void add_kernel_arguments(statements_type  const & statements, std::string & arguments_string) const = 0;
 
         /** @brief Get the vector size of the kernel */
-        unsigned int vector_size() const { return vector_size_; }
+        unsigned int vector_size() const { return simd_width_; }
 
         /** @brief csv representation of an operation
          *
@@ -137,18 +151,13 @@ namespace viennacl{
           ///Get Prototype, initialize mapping
           std::string prototype;
           std::set<std::string> already_generated;
-          kernel_arguments(statements, prototype);
-
-          {
-            std::map<void *, std::size_t> memory;
-            unsigned int current_arg = 0;
-            std::size_t i = 0;
-            for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it)
-              detail::traverse(it->first, it->second, detail::map_functor(memory,current_arg,mapping[i++]));
-          }
+          add_kernel_arguments(statements, prototype);
+          initialize_mapping(statements,mapping);
 
           for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
-            detail::traverse(it->first, it->second, detail::prototype_generation_traversal(already_generated, prototype, vector_size(), mapping[std::distance(statements.begin(), it)]));
+            detail::mapping_type const & mapping_ref = mapping[std::distance(statements.begin(), it)];
+            set_simd_width(*it, mapping_ref);
+            detail::traverse(it->first, it->second, detail::prototype_generation_traversal(already_generated, prototype, mapping_ref));
           }
 
           prototype.erase(prototype.size()-1); //Last comma pruned
@@ -171,7 +180,7 @@ namespace viennacl{
         }
 
       protected:
-        unsigned int vector_size_;
+        unsigned int simd_width_;
         std::size_t local_size_1_;
         std::size_t local_size_2_;
         std::size_t num_kernels_;
