@@ -57,7 +57,7 @@ namespace viennacl{
 
         std::string csv_representation() const{
           std::ostringstream oss;
-          oss << vector_size_
+          oss << simd_width_
                  << "," << m_
                  << "," << k_
                  << "," << num_groups_;
@@ -114,7 +114,7 @@ namespace viennacl{
           }
         }
 
-        void kernel_arguments(statements_type  const & /*statements*/, std::string & arguments_string) const{
+        void add_kernel_arguments(statements_type  const & /*statements*/, std::string & arguments_string) const{
           arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
           arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
         }
@@ -167,11 +167,11 @@ namespace viennacl{
             viennacl::scheduler::statement const & statement = (*it)->statement();
             viennacl::scheduler::statement_node const & root_node = (*it)->root_node();
             if(is_lhs_transposed)
-              detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair("c", "r"),vector_size_,stream,(*it)->mapping());
+              detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair("c", "r"),stream,(*it)->mapping());
             else
-              detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair("r", "c"),vector_size_,stream,(*it)->mapping());
+              detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair("r", "c"),stream,(*it)->mapping());
 
-            detail::fetch_all_rhs(fetched,statement,root_node, std::make_pair("c", "0"),vector_size_,stream,(*it)->mapping());
+            detail::fetch_all_rhs(fetched,statement,root_node, std::make_pair("c", "0"),stream,(*it)->mapping());
           }
 
 

@@ -125,7 +125,7 @@ namespace viennacl{
                   assert(false && bool("unexpected expression tree"));
                 }
               }
-              k.arg(n_arg++, cl_uint(vector_size/vector_size_));
+              k.arg(n_arg++, cl_uint(vector_size/simd_width_));
             }
           }
         }
@@ -141,7 +141,7 @@ namespace viennacl{
 
         std::string csv_representation() const{
           std::ostringstream oss;
-          oss << vector_size_
+          oss << simd_width_
                  << "," << local_size_1_
                  << "," << num_groups_
                  << "," << decomposition_;
@@ -181,7 +181,7 @@ namespace viennacl{
           }
         }
 
-        void kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
+        void add_kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
           init_temporaries(statements);
           arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
           for(temporaries_type::iterator it = temporaries_.begin() ; it != temporaries_.end() ; ++it){
@@ -215,8 +215,8 @@ namespace viennacl{
           for(std::vector<detail::mapped_scalar_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
             viennacl::scheduler::statement const & statement = (*it)->statement();
             viennacl::scheduler::statement_node const & root_node = (*it)->root_node();
-            detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair("i", "0"),vector_size_,stream,(*it)->mapping());
-            detail::fetch_all_rhs(fetched,statement,root_node, std::make_pair("i", "0"),vector_size_,stream,(*it)->mapping());
+            detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair("i", "0"),stream,(*it)->mapping());
+            detail::fetch_all_rhs(fetched,statement,root_node, std::make_pair("i", "0"),stream,(*it)->mapping());
           }
 
 
@@ -224,8 +224,8 @@ namespace viennacl{
           for(std::vector<detail::mapped_scalar_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
             viennacl::scheduler::statement const & statement = (*it)->statement();
             viennacl::scheduler::statement_node const & root_node = (*it)->root_node();
-            if(vector_size_ > 1){
-              for(unsigned int a = 0 ; a < vector_size_ ; ++a){
+            if(simd_width_ > 1){
+              for(unsigned int a = 0 ; a < simd_width_ ; ++a){
                 std::string str;
                 detail::generate_all_lhs(statement,root_node,std::make_pair("i","0"),a,str,(*it)->mapping());
                 str += "*";

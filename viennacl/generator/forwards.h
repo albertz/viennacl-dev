@@ -113,8 +113,8 @@ namespace viennacl{
       template<class Fun>
       static void traverse(scheduler::statement const & statement, scheduler::statement_node const & root_node, Fun const & fun, bool recurse_binary_leaf = true);
       static std::string generate(std::pair<std::string, std::string> const & index, int vector_index, mapped_object const & s);
-      static std::string & append_kernel_arguments(std::set<std::string> & already_generated, std::string & str, unsigned int vector_size, mapped_object const & s);
-      static void fetch(std::pair<std::string, std::string> const & index, unsigned int vectorization, std::set<std::string> & fetched, utils::kernel_generation_stream & stream, mapped_object & s);
+      static std::string & append_kernel_arguments(std::set<std::string> & already_generated, std::string & str, mapped_object const & s);
+      static void fetch(std::pair<std::string, std::string> const & index, std::set<std::string> & fetched, utils::kernel_generation_stream & stream, mapped_object & s);
       static const char * generate(scheduler::operation_node_type arg);
       static void generate_all_rhs(scheduler::statement const & statement
                                 , scheduler::statement_node const & root_node
