@@ -56,6 +56,14 @@ namespace viennacl
       OPERATION_BINARY_TYPE_FAMILY
     };
 
+    enum operation_node_type_subfamily{
+        OPERATION_INVALID_TYPE_SUBFAMILY = 0,
+
+        OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY,
+        OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY,
+        OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY
+    };
+
     /** @brief Enumeration for identifying the possible operations */
     enum operation_node_type
     {
@@ -97,14 +105,16 @@ namespace viennacl
       OPERATION_BINARY_DIV_TYPE,     // vector/matrix divided by scalar
       OPERATION_BINARY_ELEMENT_PROD_TYPE,
       OPERATION_BINARY_ELEMENT_DIV_TYPE,
-#ifdef VIENNACL_WITH_EXTENDED_GENERATOR
+
       OPERATION_BINARY_ELEMENT_EQ_TYPE,
       OPERATION_BINARY_ELEMENT_NEQ_TYPE,
-      OPERATION_BINARY_ELEMENT_GREATER_THAN_TYPE,
-      OPERATION_BINARY_ELEMENT_GREATER_THAN_EQUAL_TO_TYPE,
-      OPERATION_BINARY_ELEMENT_LESS_THAN_TYPE,
-      OPERATION_BINARY_ELEMENT_LESS_THAN_EQUAL_TO_TYPE,
-#endif
+      OPERATION_BINARY_ELEMENT_GREATER_TYPE,
+      OPERATION_BINARY_ELEMENT_GEQ_TYPE,
+      OPERATION_BINARY_ELEMENT_LESS_TYPE,
+      OPERATION_BINARY_ELEMENT_LEQ_TYPE,
+
+      OPERATION_BINARY_ELEMENT_POW_TYPE,
+
       OPERATION_BINARY_INNER_PROD_TYPE
     };
 
@@ -118,50 +128,57 @@ namespace viennacl
         typedef typename T::ERROR_UNKNOWN_OP_TYPE   error_type;
       };
 
-      // unary operations
-      template <> struct op_type_info<op_element_unary<op_abs>   > { enum { id = OPERATION_UNARY_ABS_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_acos>  > { enum { id = OPERATION_UNARY_ACOS_TYPE,  family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_asin>  > { enum { id = OPERATION_UNARY_ASIN_TYPE,  family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_atan>  > { enum { id = OPERATION_UNARY_ATAN_TYPE,  family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_ceil>  > { enum { id = OPERATION_UNARY_CEIL_TYPE,  family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_cos>   > { enum { id = OPERATION_UNARY_COS_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_cosh>  > { enum { id = OPERATION_UNARY_COSH_TYPE,  family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_exp>   > { enum { id = OPERATION_UNARY_EXP_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_fabs>  > { enum { id = OPERATION_UNARY_FABS_TYPE,  family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_floor> > { enum { id = OPERATION_UNARY_FLOOR_TYPE, family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_log>   > { enum { id = OPERATION_UNARY_LOG_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_log10> > { enum { id = OPERATION_UNARY_LOG10_TYPE, family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_sin>   > { enum { id = OPERATION_UNARY_SIN_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_sinh>  > { enum { id = OPERATION_UNARY_SINH_TYPE,  family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_sqrt>  > { enum { id = OPERATION_UNARY_SQRT_TYPE,  family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_tan>   > { enum { id = OPERATION_UNARY_TAN_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_unary<op_tanh>  > { enum { id = OPERATION_UNARY_TANH_TYPE,  family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_norm_1                  > { enum { id = OPERATION_UNARY_NORM_1_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_norm_2                  > { enum { id = OPERATION_UNARY_NORM_2_TYPE,   family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_norm_inf                > { enum { id = OPERATION_UNARY_NORM_INF_TYPE, family = OPERATION_UNARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_trans                   > { enum { id = OPERATION_UNARY_TRANS_TYPE, family = OPERATION_UNARY_TYPE_FAMILY }; };
+      // elementwise function
+      template <> struct op_type_info<op_element_unary<op_abs>   >      { enum { id = OPERATION_UNARY_ABS_TYPE,          family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_acos>  >      { enum { id = OPERATION_UNARY_ACOS_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY}; };
+      template <> struct op_type_info<op_element_unary<op_asin>  >      { enum { id = OPERATION_UNARY_ASIN_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_atan>  >      { enum { id = OPERATION_UNARY_ATAN_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_ceil>  >      { enum { id = OPERATION_UNARY_CEIL_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_cos>   >      { enum { id = OPERATION_UNARY_COS_TYPE,          family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_cosh>  >      { enum { id = OPERATION_UNARY_COSH_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_exp>   >      { enum { id = OPERATION_UNARY_EXP_TYPE,          family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_fabs>  >      { enum { id = OPERATION_UNARY_FABS_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_floor> >      { enum { id = OPERATION_UNARY_FLOOR_TYPE,        family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_log>   >      { enum { id = OPERATION_UNARY_LOG_TYPE,          family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_log10> >      { enum { id = OPERATION_UNARY_LOG10_TYPE,        family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_sin>   >      { enum { id = OPERATION_UNARY_SIN_TYPE,          family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_sinh>  >      { enum { id = OPERATION_UNARY_SINH_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_sqrt>  >      { enum { id = OPERATION_UNARY_SQRT_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_tan>   >      { enum { id = OPERATION_UNARY_TAN_TYPE,          family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_unary<op_tanh>  >      { enum { id = OPERATION_UNARY_TANH_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+
+      //structurewise function
+      template <> struct op_type_info<op_norm_1                  >      { enum { id = OPERATION_UNARY_NORM_1_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_norm_2                  >      { enum { id = OPERATION_UNARY_NORM_2_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_norm_inf                >      { enum { id = OPERATION_UNARY_NORM_INF_TYPE,     family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_trans                   >      { enum { id = OPERATION_UNARY_TRANS_TYPE,        family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
 
       // binary operations
-      template <> struct op_type_info<op_assign>                   { enum { id = OPERATION_BINARY_ASSIGN_TYPE,       family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_inplace_add>              { enum { id = OPERATION_BINARY_INPLACE_ADD_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_inplace_sub>              { enum { id = OPERATION_BINARY_INPLACE_SUB_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_add>                      { enum { id = OPERATION_BINARY_ADD_TYPE,          family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_sub>                      { enum { id = OPERATION_BINARY_SUB_TYPE,          family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_prod>                     { enum { id = OPERATION_BINARY_MAT_VEC_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_mat_mat_prod>             { enum { id = OPERATION_BINARY_MAT_MAT_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_mult>                     { enum { id = OPERATION_BINARY_MULT_TYPE,         family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_div>                      { enum { id = OPERATION_BINARY_DIV_TYPE,          family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_binary<op_prod> > { enum { id = OPERATION_BINARY_ELEMENT_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_binary<op_div>  > { enum { id = OPERATION_BINARY_ELEMENT_DIV_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY }; };      
-#ifdef VIENNACL_WITH_EXTENDED_GENERATOR
-      template <> struct op_type_info<op_element_binary<op_eq> > { enum { id = OPERATION_BINARY_ELEMENT_EQ_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_binary<op_neq> > { enum { id = OPERATION_BINARY_ELEMENT_NEQ_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_binary<op_greater_than> > { enum { id = OPERATION_BINARY_ELEMENT_GREATER_THAN_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_binary<op_less_than> > { enum { id = OPERATION_BINARY_ELEMENT_LESS_THAN_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_binary<op_greater_than_equal_to> > { enum { id = OPERATION_BINARY_ELEMENT_GREATER_THAN_EQUAL_TO_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_binary<op_less_than_equal_to> > { enum { id = OPERATION_BINARY_ELEMENT_LESS_THAN_EQUAL_TO_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-#endif
-      template <> struct op_type_info<op_inner_prod>               { enum { id = OPERATION_BINARY_INNER_PROD_TYPE,   family = OPERATION_BINARY_TYPE_FAMILY }; };
+
+      //elementwise operator
+      template <> struct op_type_info<op_assign>                        { enum { id = OPERATION_BINARY_ASSIGN_TYPE,       family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_inplace_add>                   { enum { id = OPERATION_BINARY_INPLACE_ADD_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_inplace_sub>                   { enum { id = OPERATION_BINARY_INPLACE_SUB_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_add>                           { enum { id = OPERATION_BINARY_ADD_TYPE,          family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_sub>                           { enum { id = OPERATION_BINARY_SUB_TYPE,          family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_binary<op_prod> >      { enum { id = OPERATION_BINARY_ELEMENT_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_binary<op_div>  >      { enum { id = OPERATION_BINARY_ELEMENT_DIV_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_element_binary<op_eq> >        { enum { id = OPERATION_BINARY_ELEMENT_EQ_TYPE,   family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY  }; };
+      template <> struct op_type_info<op_element_binary<op_neq> >       { enum { id = OPERATION_BINARY_ELEMENT_NEQ_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY  }; };
+      template <> struct op_type_info<op_element_binary<op_greater> >   { enum { id = OPERATION_BINARY_ELEMENT_GREATER_TYPE, family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY  }; };
+      template <> struct op_type_info<op_element_binary<op_less> >      { enum { id = OPERATION_BINARY_ELEMENT_LESS_TYPE, family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY  }; };
+      template <> struct op_type_info<op_element_binary<op_geq> >       { enum { id = OPERATION_BINARY_ELEMENT_GEQ_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY  }; };
+      template <> struct op_type_info<op_element_binary<op_leq> >       { enum { id = OPERATION_BINARY_ELEMENT_LEQ_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY  }; };
+      template <> struct op_type_info<op_mult>                          { enum { id = OPERATION_BINARY_MULT_TYPE,         family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_div>                           { enum { id = OPERATION_BINARY_DIV_TYPE,          family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY }; };
+
+      //elementwise function
+      template <> struct op_type_info<op_element_binary<op_pow> >       { enum { id = OPERATION_BINARY_ELEMENT_POW_TYPE , family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
+
+      //structurewise function
+      template <> struct op_type_info<op_prod>                          { enum { id = OPERATION_BINARY_MAT_VEC_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_mat_mat_prod>                  { enum { id = OPERATION_BINARY_MAT_MAT_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_inner_prod>                    { enum { id = OPERATION_BINARY_INNER_PROD_TYPE,   family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
 
     } // namespace result_of
 
@@ -413,6 +430,7 @@ namespace viennacl
     struct op_element
     {
       operation_node_type_family   type_family;
+      operation_node_type_subfamily type_subfamily;
       operation_node_type          type;
     };
 
@@ -451,6 +469,7 @@ namespace viennacl
         {
           // set OP:
           array_[0].op.type_family = operation_node_type_family(result_of::op_type_info<OP>::family);
+          array_[0].op.type_subfamily = operation_node_type_subfamily(result_of::op_type_info<OP>::subfamily);
           array_[0].op.type        = operation_node_type(result_of::op_type_info<OP>::id);
 
           // set LHS:
@@ -667,6 +686,7 @@ namespace viennacl
         {
           // set OP:
           array_[current_index].op.type_family = operation_node_type_family(result_of::op_type_info<OP>::family);
+          array_[current_index].op.type_subfamily = operation_node_type_subfamily(result_of::op_type_info<OP>::subfamily);
           array_[current_index].op.type        = operation_node_type(result_of::op_type_info<OP>::id);
 
           // set LHS and RHS:

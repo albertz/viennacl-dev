@@ -79,20 +79,18 @@ namespace viennacl
   /** @brief A tag class representing the power function */
   struct op_pow {};
 
-#ifdef VIENNACL_WITH_EXTENDED_GENERATOR
    /** @brief A tag class representing equality */
   struct op_eq {};
   /** @brief A tag class representing inequality */
   struct op_neq {};
   /** @brief A tag class representing greater-than */
-  struct op_greater_than {};
+  struct op_greater {};
   /** @brief A tag class representing less-than */
-  struct op_less_than {};
+  struct op_less {};
   /** @brief A tag class representing greater-than-or-equal-to */
-  struct op_greater_than_equal_to {};
+  struct op_geq {};
   /** @brief A tag class representing less-than-or-equal-to */
-  struct op_less_than_equal_to {};
-#endif
+  struct op_leq {};
 
   /** @brief A tag class representing element-wise binary operations (like multiplication) on vectors or matrices */
   template <typename OP>
@@ -101,6 +99,10 @@ namespace viennacl
   /** @brief A tag class representing element-wise unary operations (like sin()) on vectors or matrices */
   template <typename OP>
   struct op_element_unary {};
+
+  /** @brief A tag class representing element-wise functions on vectors or matrices */
+  template <typename OP>
+  struct op_element_function {};
 
   struct op_abs {};
   struct op_acos {};

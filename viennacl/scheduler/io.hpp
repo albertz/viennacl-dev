@@ -87,6 +87,7 @@ namespace viennacl
             VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_BINARY_ELEMENT_PROD_TYPE)
             VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_BINARY_ELEMENT_DIV_TYPE)
             VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_BINARY_INNER_PROD_TYPE)
+            VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_BINARY_ELEMENT_POW_TYPE)
 
             default: throw statement_not_supported_exception("Cannot convert unary operation to string");
           }

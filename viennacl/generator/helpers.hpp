@@ -53,11 +53,20 @@ namespace viennacl{
       static const char * generate(operation_node_type type){
         // unary expression
         switch(type){
-          //Unary
+          //Function
           case OPERATION_UNARY_ABS_TYPE : return "abs";
+          case OPERATION_BINARY_ELEMENT_POW_TYPE : return "pow";
+
+          //Unary
           case OPERATION_UNARY_TRANS_TYPE : return "trans";
 
           //Binary
+          //Leaves
+          case OPERATION_BINARY_INNER_PROD_TYPE : return "iprod";
+          case OPERATION_BINARY_MAT_MAT_PROD_TYPE : return "mmprod";
+          case OPERATION_BINARY_MAT_VEC_PROD_TYPE : return "mvprod";
+
+          //Arithmetic
           case OPERATION_BINARY_ASSIGN_TYPE : return "=";
           case OPERATION_BINARY_INPLACE_ADD_TYPE : return "+=";
           case OPERATION_BINARY_INPLACE_SUB_TYPE : return "-=";
@@ -65,49 +74,24 @@ namespace viennacl{
           case OPERATION_BINARY_SUB_TYPE : return "-";
           case OPERATION_BINARY_MULT_TYPE : return "*";
           case OPERATION_BINARY_DIV_TYPE : return "/";
-          case OPERATION_BINARY_INNER_PROD_TYPE : return "iprod";
-          case OPERATION_BINARY_MAT_MAT_PROD_TYPE : return "mmprod";
-          case OPERATION_BINARY_MAT_VEC_PROD_TYPE : return "mvprod";
           case OPERATION_BINARY_ACCESS_TYPE : return "[]";
 
           //Binary elementwise
           case OPERATION_BINARY_ELEMENT_EQ_TYPE : return "==";
           case OPERATION_BINARY_ELEMENT_NEQ_TYPE : return "!=";
-          case OPERATION_BINARY_ELEMENT_GREATER_THAN_TYPE : return ">";
-          case OPERATION_BINARY_ELEMENT_GREATER_THAN_EQUAL_TO_TYPE : return ">=";
-          case OPERATION_BINARY_ELEMENT_LESS_THAN_TYPE : return "<";
-          case OPERATION_BINARY_ELEMENT_LESS_THAN_EQUAL_TO_TYPE : return "<=";
+          case OPERATION_BINARY_ELEMENT_GREATER_TYPE : return ">";
+          case OPERATION_BINARY_ELEMENT_GEQ_TYPE : return ">=";
+          case OPERATION_BINARY_ELEMENT_LESS_TYPE : return "<";
+          case OPERATION_BINARY_ELEMENT_LEQ_TYPE : return "<=";
+
 
           default : throw "not implemented";
         }
       }
 
-      /** @brief checks whether an operator is both a binary node and a leaf */
-      inline bool is_binary_leaf_operator(operation_node_type const & op_type) {
-        return op_type == scheduler::OPERATION_BINARY_INNER_PROD_TYPE
-             ||op_type == scheduler::OPERATION_BINARY_MAT_VEC_PROD_TYPE
-             ||op_type == scheduler::OPERATION_BINARY_MAT_MAT_PROD_TYPE;
-      }
-
-      /** @brief checks whether an operator is arithmetic or not */
-      inline bool is_arithmetic_operator(operation_node_type const & op_type) {
-        return op_type == scheduler::OPERATION_BINARY_ASSIGN_TYPE
-             ||op_type == scheduler::OPERATION_BINARY_ADD_TYPE
-             ||op_type == scheduler::OPERATION_BINARY_DIV_TYPE
-             ||op_type == scheduler::OPERATION_BINARY_ELEMENT_DIV_TYPE
-             ||op_type == scheduler::OPERATION_BINARY_ELEMENT_PROD_TYPE
-             ||op_type == scheduler::OPERATION_BINARY_INPLACE_ADD_TYPE
-             ||op_type == scheduler::OPERATION_BINARY_INPLACE_SUB_TYPE
-//                 ||op_type == scheduler::OPERATION_BINARY_INPLACE_DIV_TYPE
-//                ||op_type == scheduler::OPERATION_BINARY_INPLACE_MULT_TYPE
-            ||op_type == scheduler::OPERATION_BINARY_MULT_TYPE
-            ||op_type == scheduler::OPERATION_BINARY_SUB_TYPE;
-
-      }
-
       /** @brief Recursively execute a functor on a statement */
       template<class Fun>
-      static void traverse(scheduler::statement const & statement, scheduler::statement_node const & root_node, Fun const & fun, bool recurse_binary_leaf /* see forwards.h for default argument */){
+      static void traverse(scheduler::statement const & statement, scheduler::statement_node const & root_node, Fun const & fun, bool recurse_structurewise_function /* see forwards.h for default argument */){
 
         if(root_node.op.type_family==OPERATION_UNARY_TYPE_FAMILY)
         {
@@ -115,22 +99,24 @@ namespace viennacl{
           fun(&statement, &root_node, PARENT_NODE_TYPE);
 
           //Lhs:
-          fun.call_before_expansion();
+          fun.call_before_expansion(&root_node);
+
           if(root_node.lhs.type_family==COMPOSITE_OPERATION_FAMILY)
-              traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_binary_leaf);
+              traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_structurewise_function);
           fun(&statement, &root_node, LHS_NODE_TYPE);
-          fun.call_after_expansion();
+
+          fun.call_after_expansion(&root_node);
         }
         else if(root_node.op.type_family==OPERATION_BINARY_TYPE_FAMILY)
         {
-          bool deep_recursion = recurse_binary_leaf || !is_binary_leaf_operator(root_node.op.type);
+          bool deep_recursion = recurse_structurewise_function || root_node.op.type_subfamily!=scheduler::OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY;
 
-          fun.call_before_expansion();
+          fun.call_before_expansion(&root_node);
 
           //Lhs:
           if(deep_recursion){
             if(root_node.lhs.type_family==COMPOSITE_OPERATION_FAMILY)
-              traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_binary_leaf);
+              traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_structurewise_function);
             fun(&statement, &root_node, LHS_NODE_TYPE);
           }
 
@@ -140,11 +126,11 @@ namespace viennacl{
           //Rhs:
           if(deep_recursion){
             if(root_node.rhs.type_family==COMPOSITE_OPERATION_FAMILY)
-              traverse(statement, statement.array()[root_node.rhs.node_index], fun, recurse_binary_leaf);
+              traverse(statement, statement.array()[root_node.rhs.node_index], fun, recurse_structurewise_function);
             fun(&statement, &root_node, RHS_NODE_TYPE);
           }
 
-          fun.call_after_expansion();
+          fun.call_after_expansion(&root_node);
 
         }
       }
@@ -152,8 +138,8 @@ namespace viennacl{
       /** @brief base functor class for traversing a statement */
       class traversal_functor{
         public:
-          void call_before_expansion() const { }
-          void call_after_expansion() const { }
+          void call_before_expansion(scheduler::statement_node const *) const { }
+          void call_after_expansion(scheduler::statement_node const *) const { }
       };
 
       /** @brief functor for generating the prototype of a statement */
@@ -235,16 +221,25 @@ namespace viennacl{
         public:
           expression_generation_traversal(std::pair<std::string, std::string> const & index, int simd_element, std::string & str, mapping_type const & mapping) : index_string_(index), simd_element_(simd_element), str_(str), mapping_(mapping){ }
 
-          void call_before_expansion() const { str_+="("; }
-          void call_after_expansion() const { str_+=")"; }
+          void call_before_expansion(scheduler::statement_node const * root_node) const
+          {
+              if(root_node->op.type_subfamily==scheduler::OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY)
+                  str_+=generate(root_node->op.type);
+              str_+="(";
+          }
+          void call_after_expansion(scheduler::statement_node const *) const
+          { str_+=")";
+          }
 
           void operator()(scheduler::statement const *, scheduler::statement_node const * root_node, detail::node_type node_type) const {
             if(node_type==PARENT_NODE_TYPE)
             {
-              if(is_binary_leaf_operator(root_node->op.type))
-                str_ += generate(index_string_, simd_element_, *mapping_.at(std::make_pair(root_node, node_type)));
-              else
-                str_ += generate(root_node->op.type);
+               switch(root_node->op.type_subfamily){
+                   case scheduler::OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY: str_ += generate(index_string_, simd_element_, *mapping_.at(std::make_pair(root_node, node_type))); break;
+                   case scheduler::OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY: str_ += generate(root_node->op.type); break;
+                   case scheduler::OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY: str_ += ","; break;
+                   default: break;
+               }
             }
             else{
               if(node_type==LHS_NODE_TYPE){

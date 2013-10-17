@@ -15,8 +15,7 @@
    License:         MIT (X11), see file LICENSE in the base directory
 ============================================================================= */
 
-#define VIENNACL_WITH_EXTENDED_GENERATOR
-
+//#define VIENNACL_DEBUG_BUILD
 //
 // *** System
 //
@@ -42,6 +41,7 @@
 #include "viennacl/linalg/norm_inf.hpp"
 #include "viennacl/generator/generate.hpp"
 #include "viennacl/scheduler/io.hpp"
+
 
 #define CHECK_RESULT(cpu,gpu, op) \
     if ( float delta = fabs ( diff ( cpu, gpu) ) > epsilon ) {\
@@ -209,7 +209,7 @@ int test_vector ( Epsilon const& epsilon) {
         for(unsigned int i=0 ; i < size ; ++i){
             cw(i) = cx(i) > cy(i);
         }
-        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_greater_than(x,y));
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_greater(x,y));
         generator::generate_enqueue_statement(statement, statement.array()[0]);
         viennacl::backend::finish();
         CHECK_RESULT(cw, w, w = x > y)
@@ -220,7 +220,7 @@ int test_vector ( Epsilon const& epsilon) {
         for(unsigned int i=0 ; i < size ; ++i){
             cw(i) = cx(i) >= cy(i);
         }
-        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_greater_than_equal_to(x,y));
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_geq(x,y));
         generator::generate_enqueue_statement(statement, statement.array()[0]);
         viennacl::backend::finish();
         CHECK_RESULT(cw, w, w = x > y)
@@ -231,7 +231,7 @@ int test_vector ( Epsilon const& epsilon) {
         for(unsigned int i=0 ; i < size ; ++i){
             cw(i) = cx(i) < cy(i);
         }
-        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_less_than(x,y));
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_less(x,y));
         generator::generate_enqueue_statement(statement, statement.array()[0]);
         viennacl::backend::finish();
         CHECK_RESULT(cw, w, w = x > y)
@@ -242,10 +242,22 @@ int test_vector ( Epsilon const& epsilon) {
         for(unsigned int i=0 ; i < size ; ++i){
             cw(i) = cx(i) <= cy(i);
         }
-        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_less_than_equal_to(x,y));
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_leq(x,y));
         generator::generate_enqueue_statement(statement, statement.array()[0]);
         viennacl::backend::finish();
         CHECK_RESULT(cw, w, w = x > y)
+    }
+
+
+    {
+        std::cout << "w = x.^y" << std::endl;
+        for(unsigned int i=0 ; i < size ; ++i){
+            cw(i) = std::pow(cx(i),cy(i));
+        }
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_pow(x,y));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = x.^y)
     }
 
 //    {
