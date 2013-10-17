@@ -15,6 +15,8 @@
    License:         MIT (X11), see file LICENSE in the base directory
 ============================================================================= */
 
+#define VIENNACL_WITH_EXTENDED_GENERATOR
+
 //
 // *** System
 //
@@ -134,62 +136,117 @@ int test_vector ( Epsilon const& epsilon) {
     // --------------------------------------------------------------------------
 
     {
-    std::cout << "w = x + y ..." << std::endl;
-    cw = cx + cy;
-    viennacl::scheduler::statement statement(w, viennacl::op_assign(), x + y);
-    generator::generate_enqueue_statement(statement, statement.array()[0]);
-    viennacl::backend::finish();
-    CHECK_RESULT(cw, w, w = x + y);
+        std::cout << "w = x + y ..." << std::endl;
+        cw = cx + cy;
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), x + y);
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = x + y);
     }
 
     {
-    std::cout << "y = w + x ..." << std::endl;
-    cy = cw + cx;
-    viennacl::scheduler::statement statement(y, viennacl::op_assign(), w + x);
-    generator::generate_enqueue_statement(statement, statement.array()[0]);
-    viennacl::backend::finish();
-    CHECK_RESULT(cy, y, y = w + x);
+        std::cout << "y = w + x ..." << std::endl;
+        cy = cw + cx;
+        viennacl::scheduler::statement statement(y, viennacl::op_assign(), w + x);
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cy, y, y = w + x);
     }
 
     {
-    std::cout << "x = y + w ..." << std::endl;
-    cx = cy + cw;
-    viennacl::scheduler::statement statement(x, viennacl::op_assign(), y + w);
-    generator::generate_enqueue_statement(statement, statement.array()[0]);
-    viennacl::backend::finish();
-    CHECK_RESULT(cx, x, x = y + w);
+        std::cout << "x = y + w ..." << std::endl;
+        cx = cy + cw;
+        viennacl::scheduler::statement statement(x, viennacl::op_assign(), y + w);
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cx, x, x = y + w);
     }
 
     {
-    std::cout << "w = alpha*x + beta*y ..." << std::endl;
-    cw = alpha*cx + beta*cy;
-    viennacl::scheduler::statement statement(w, viennacl::op_assign(), alpha*x + beta*y);
-    generator::generate_enqueue_statement(statement, statement.array()[0]);
-    viennacl::backend::finish();
-    CHECK_RESULT(cw, w, w = alpha*x + beta*y);
+        std::cout << "w = alpha*x + beta*y ..." << std::endl;
+        cw = alpha*cx + beta*cy;
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), alpha*x + beta*y);
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = alpha*x + beta*y);
     }
 
 
     {
-    std::cout << "s = inner_prod(x,y)..." << std::endl;
-    s = 0;
-    for(unsigned int i=0 ; i<size ; ++i)  s+=cx[i]*cy[i];
-    viennacl::scheduler::statement statement(gs, viennacl::op_assign(), viennacl::linalg::inner_prod(x,y));
-    generator::generate_enqueue_statement(statement, statement.array()[0]);
-    viennacl::backend::finish();
-    CHECK_RESULT(s, gs, s = inner_prod(x,y));
+        std::cout << "s = inner_prod(x,y)..." << std::endl;
+        s = 0;
+        for(unsigned int i=0 ; i<size ; ++i)  s+=cx[i]*cy[i];
+        viennacl::scheduler::statement statement(gs, viennacl::op_assign(), viennacl::linalg::inner_prod(x,y));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(s, gs, s = inner_prod(x,y));
     }
-//    {
-//        std::cout << "w = x > 0.42" << std::endl;
-//        for(unsigned int i=0 ; i < size ; ++i){
-//            cw(i) = cx(i) > (NumericT)0.42;
-//        }
-//        generator::custom_operation op;
-//        op.add(vec(w) = vec(x) > (NumericT)0.42);
-//        op.execute();
-//        viennacl::backend::finish();
-//        CHECK_RESULT(cw, w, w = x > 1)
-//    }
+
+    {
+        std::cout << "w = x == x" << std::endl;
+        for(unsigned int i=0 ; i < size ; ++i){
+            cw(i) = cx(i) == cx(i);
+        }
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_eq(x,x));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = x == x)
+    }
+
+    {
+        std::cout << "w = x != x" << std::endl;
+        for(unsigned int i=0 ; i < size ; ++i){
+            cw(i) = cx(i) != cx(i);
+        }
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_neq(x,x));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = x != x)
+    }
+
+    {
+        std::cout << "w = x > y" << std::endl;
+        for(unsigned int i=0 ; i < size ; ++i){
+            cw(i) = cx(i) > cy(i);
+        }
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_greater_than(x,y));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = x > y)
+    }
+
+    {
+        std::cout << "w = x >= y" << std::endl;
+        for(unsigned int i=0 ; i < size ; ++i){
+            cw(i) = cx(i) >= cy(i);
+        }
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_greater_than_equal_to(x,y));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = x > y)
+    }
+
+    {
+        std::cout << "w = x < y" << std::endl;
+        for(unsigned int i=0 ; i < size ; ++i){
+            cw(i) = cx(i) < cy(i);
+        }
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_less_than(x,y));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = x > y)
+    }
+
+    {
+        std::cout << "w = x <= y" << std::endl;
+        for(unsigned int i=0 ; i < size ; ++i){
+            cw(i) = cx(i) <= cy(i);
+        }
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_less_than_equal_to(x,y));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = x > y)
+    }
 
 //    {
 //        std::cout << "w = -w ..." << std::endl;

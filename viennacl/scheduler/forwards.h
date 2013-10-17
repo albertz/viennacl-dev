@@ -1,6 +1,7 @@
 #ifndef VIENNACL_SCHEDULER_STATEMENT_HPP
 #define VIENNACL_SCHEDULER_STATEMENT_HPP
 
+
 /* =========================================================================
    Copyright (c) 2010-2013, Institute for Microelectronics,
                             Institute for Analysis and Scientific Computing,
@@ -96,6 +97,14 @@ namespace viennacl
       OPERATION_BINARY_DIV_TYPE,     // vector/matrix divided by scalar
       OPERATION_BINARY_ELEMENT_PROD_TYPE,
       OPERATION_BINARY_ELEMENT_DIV_TYPE,
+#ifdef VIENNACL_WITH_EXTENDED_GENERATOR
+      OPERATION_BINARY_ELEMENT_EQ_TYPE,
+      OPERATION_BINARY_ELEMENT_NEQ_TYPE,
+      OPERATION_BINARY_ELEMENT_GREATER_THAN_TYPE,
+      OPERATION_BINARY_ELEMENT_GREATER_THAN_EQUAL_TO_TYPE,
+      OPERATION_BINARY_ELEMENT_LESS_THAN_TYPE,
+      OPERATION_BINARY_ELEMENT_LESS_THAN_EQUAL_TO_TYPE,
+#endif
       OPERATION_BINARY_INNER_PROD_TYPE
     };
 
@@ -143,7 +152,15 @@ namespace viennacl
       template <> struct op_type_info<op_mult>                     { enum { id = OPERATION_BINARY_MULT_TYPE,         family = OPERATION_BINARY_TYPE_FAMILY }; };
       template <> struct op_type_info<op_div>                      { enum { id = OPERATION_BINARY_DIV_TYPE,          family = OPERATION_BINARY_TYPE_FAMILY }; };
       template <> struct op_type_info<op_element_binary<op_prod> > { enum { id = OPERATION_BINARY_ELEMENT_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
-      template <> struct op_type_info<op_element_binary<op_div>  > { enum { id = OPERATION_BINARY_ELEMENT_DIV_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY }; };
+      template <> struct op_type_info<op_element_binary<op_div>  > { enum { id = OPERATION_BINARY_ELEMENT_DIV_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY }; };      
+#ifdef VIENNACL_WITH_EXTENDED_GENERATOR
+      template <> struct op_type_info<op_element_binary<op_eq> > { enum { id = OPERATION_BINARY_ELEMENT_EQ_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
+      template <> struct op_type_info<op_element_binary<op_neq> > { enum { id = OPERATION_BINARY_ELEMENT_NEQ_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
+      template <> struct op_type_info<op_element_binary<op_greater_than> > { enum { id = OPERATION_BINARY_ELEMENT_GREATER_THAN_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
+      template <> struct op_type_info<op_element_binary<op_less_than> > { enum { id = OPERATION_BINARY_ELEMENT_LESS_THAN_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
+      template <> struct op_type_info<op_element_binary<op_greater_than_equal_to> > { enum { id = OPERATION_BINARY_ELEMENT_GREATER_THAN_EQUAL_TO_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
+      template <> struct op_type_info<op_element_binary<op_less_than_equal_to> > { enum { id = OPERATION_BINARY_ELEMENT_LESS_THAN_EQUAL_TO_TYPE, family = OPERATION_BINARY_TYPE_FAMILY }; };
+#endif
       template <> struct op_type_info<op_inner_prod>               { enum { id = OPERATION_BINARY_INNER_PROD_TYPE,   family = OPERATION_BINARY_TYPE_FAMILY }; };
 
     } // namespace result_of

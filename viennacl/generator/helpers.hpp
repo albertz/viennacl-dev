@@ -53,8 +53,11 @@ namespace viennacl{
       static const char * generate(operation_node_type type){
         // unary expression
         switch(type){
+          //Unary
           case OPERATION_UNARY_ABS_TYPE : return "abs";
           case OPERATION_UNARY_TRANS_TYPE : return "trans";
+
+          //Binary
           case OPERATION_BINARY_ASSIGN_TYPE : return "=";
           case OPERATION_BINARY_INPLACE_ADD_TYPE : return "+=";
           case OPERATION_BINARY_INPLACE_SUB_TYPE : return "-=";
@@ -66,6 +69,15 @@ namespace viennacl{
           case OPERATION_BINARY_MAT_MAT_PROD_TYPE : return "mmprod";
           case OPERATION_BINARY_MAT_VEC_PROD_TYPE : return "mvprod";
           case OPERATION_BINARY_ACCESS_TYPE : return "[]";
+
+          //Binary elementwise
+          case OPERATION_BINARY_ELEMENT_EQ_TYPE : return "==";
+          case OPERATION_BINARY_ELEMENT_NEQ_TYPE : return "!=";
+          case OPERATION_BINARY_ELEMENT_GREATER_THAN_TYPE : return ">";
+          case OPERATION_BINARY_ELEMENT_GREATER_THAN_EQUAL_TO_TYPE : return ">=";
+          case OPERATION_BINARY_ELEMENT_LESS_THAN_TYPE : return "<";
+          case OPERATION_BINARY_ELEMENT_LESS_THAN_EQUAL_TO_TYPE : return "<=";
+
           default : throw "not implemented";
         }
       }
@@ -231,7 +243,7 @@ namespace viennacl{
             {
               if(is_binary_leaf_operator(root_node->op.type))
                 str_ += generate(index_string_, simd_element_, *mapping_.at(std::make_pair(root_node, node_type)));
-              else if(is_arithmetic_operator(root_node->op.type))
+              else
                 str_ += generate(root_node->op.type);
             }
             else{

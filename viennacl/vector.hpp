@@ -128,7 +128,6 @@ namespace viennacl
     public:
       typedef typename base_type::size_type size_type;
       typedef SCALARTYPE const & const_reference;
-
       scalar_vector(size_type s, SCALARTYPE val, viennacl::context ctx = viennacl::context()) : base_type(s, std::make_pair(val,false), ctx) {}
   };
 
