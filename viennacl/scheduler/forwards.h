@@ -57,11 +57,11 @@ namespace viennacl
     };
 
     enum operation_node_type_subfamily{
-        OPERATION_INVALID_TYPE_SUBFAMILY = 0,
+      OPERATION_INVALID_TYPE_SUBFAMILY = 0,
 
-        OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY,
-        OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY,
-        OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY
+      OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY,
+      OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY,
+      OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY
     };
 
     /** @brief Enumeration for identifying the possible operations */
@@ -87,6 +87,9 @@ namespace viennacl
       OPERATION_UNARY_SQRT_TYPE,
       OPERATION_UNARY_TAN_TYPE,
       OPERATION_UNARY_TANH_TYPE,
+
+      //structurewise functions
+      OPERATION_UNARY_REDUCE_TYPE,
       OPERATION_UNARY_TRANS_TYPE,
       OPERATION_UNARY_NORM_1_TYPE,
       OPERATION_UNARY_NORM_2_TYPE,
@@ -99,23 +102,24 @@ namespace viennacl
       OPERATION_BINARY_INPLACE_SUB_TYPE,
       OPERATION_BINARY_ADD_TYPE,
       OPERATION_BINARY_SUB_TYPE,
-      OPERATION_BINARY_MAT_VEC_PROD_TYPE,
-      OPERATION_BINARY_MAT_MAT_PROD_TYPE,
       OPERATION_BINARY_MULT_TYPE,    // scalar times vector/matrix
       OPERATION_BINARY_DIV_TYPE,     // vector/matrix divided by scalar
       OPERATION_BINARY_ELEMENT_PROD_TYPE,
       OPERATION_BINARY_ELEMENT_DIV_TYPE,
-
       OPERATION_BINARY_ELEMENT_EQ_TYPE,
       OPERATION_BINARY_ELEMENT_NEQ_TYPE,
       OPERATION_BINARY_ELEMENT_GREATER_TYPE,
       OPERATION_BINARY_ELEMENT_GEQ_TYPE,
       OPERATION_BINARY_ELEMENT_LESS_TYPE,
       OPERATION_BINARY_ELEMENT_LEQ_TYPE,
-
       OPERATION_BINARY_ELEMENT_POW_TYPE,
 
+      //structurewise functions
+      OPERATION_BINARY_MAT_VEC_PROD_TYPE,
+      OPERATION_BINARY_MAT_MAT_PROD_TYPE,
       OPERATION_BINARY_INNER_PROD_TYPE
+
+
     };
 
 
@@ -148,6 +152,7 @@ namespace viennacl
       template <> struct op_type_info<op_element_unary<op_tanh>  >      { enum { id = OPERATION_UNARY_TANH_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
 
       //structurewise function
+      template <typename OP> struct op_type_info<op_reduce<OP>   >      { enum { id = OPERATION_UNARY_REDUCE_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_norm_1                  >      { enum { id = OPERATION_UNARY_NORM_1_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_norm_2                  >      { enum { id = OPERATION_UNARY_NORM_2_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_norm_inf                >      { enum { id = OPERATION_UNARY_NORM_INF_TYPE,     family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
@@ -446,12 +451,13 @@ namespace viennacl
     {
 
       template <class T> struct num_nodes { enum { value = 0 }; };
-      template <class LHS, class OP, class RHS> struct num_nodes<       vector_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value }; };
-      template <class LHS, class OP, class RHS> struct num_nodes< const vector_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value }; };
-      template <class LHS, class OP, class RHS> struct num_nodes<       matrix_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value }; };
-      template <class LHS, class OP, class RHS> struct num_nodes< const matrix_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value }; };
-      template <class LHS, class OP, class RHS> struct num_nodes<       scalar_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value }; };
-      template <class LHS, class OP, class RHS> struct num_nodes< const scalar_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value }; };
+      template <class OP> struct num_nodes< op_reduce<OP> > { enum { value = 1 }; };
+      template <class LHS, class OP, class RHS> struct num_nodes<       vector_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value + num_nodes<OP>::value }; };
+      template <class LHS, class OP, class RHS> struct num_nodes< const vector_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value + num_nodes<OP>::value }; };
+      template <class LHS, class OP, class RHS> struct num_nodes<       matrix_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value + num_nodes<OP>::value }; };
+      template <class LHS, class OP, class RHS> struct num_nodes< const matrix_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value + num_nodes<OP>::value }; };
+      template <class LHS, class OP, class RHS> struct num_nodes<       scalar_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value + num_nodes<OP>::value }; };
+      template <class LHS, class OP, class RHS> struct num_nodes< const scalar_expression<LHS, RHS, OP> > { enum { value = 1 + num_nodes<LHS>::value + num_nodes<RHS>::value + num_nodes<OP>::value }; };
 
     }
 
@@ -679,8 +685,18 @@ namespace viennacl
           return add_element(next_free, array_[current_index].rhs, t);
         }
 
-        //////////// Internal interfaces ////////////////////
+        template <typename OP>
+        std::size_t fill_reduction_node(std::size_t, std::size_t, OP const &){ }
 
+        template <typename OP>
+        std::size_t fill_reduction_node(std::size_t index, std::size_t next_free, op_reduce<OP> const &){
+            array_[index].op.type_family = operation_node_type_family(result_of::op_type_info<OP>::family);
+            array_[index].op.type_subfamily = operation_node_type_subfamily(result_of::op_type_info<OP>::subfamily);
+            array_[index].op.type        = operation_node_type(result_of::op_type_info<OP>::id);
+            return next_free;
+        }
+
+        //////////// Internal interfaces ////////////////////
         template <template <typename, typename, typename> class ExpressionT, typename LHS, typename RHS, typename OP>
         std::size_t add_node(std::size_t current_index, std::size_t next_free, ExpressionT<LHS, RHS, OP> const & proxy)
         {
@@ -696,11 +712,18 @@ namespace viennacl
             array_[current_index].rhs.type_family  = INVALID_TYPE_FAMILY;
             array_[current_index].rhs.subtype      = INVALID_SUBTYPE;
             array_[current_index].rhs.numeric_type = INVALID_NUMERIC_TYPE;
+
+            if(array_[current_index].op.type == OPERATION_UNARY_REDUCE_TYPE)
+            {
+                array_[current_index].rhs.type_family  = COMPOSITE_OPERATION_FAMILY;
+                array_[current_index].rhs.node_index = next_free;
+                next_free = fill_reduction_node(next_free, next_free+1, OP());
+            }
+
             return add_lhs(current_index, next_free, proxy.lhs());
           }
 
           return add_rhs(current_index, add_lhs(current_index, next_free, proxy.lhs()), proxy.rhs());
-
         }
 
         container_type   array_;

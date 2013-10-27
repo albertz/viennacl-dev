@@ -100,9 +100,9 @@ namespace viennacl
   template <typename OP>
   struct op_element_unary {};
 
-  /** @brief A tag class representing element-wise functions on vectors or matrices */
+  /** @brief A tag class representing reduction operator */
   template <typename OP>
-  struct op_element_function {};
+  struct op_reduce {};
 
   struct op_abs {};
   struct op_acos {};
