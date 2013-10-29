@@ -46,6 +46,10 @@ namespace viennacl{
       INVALID_EXPRESSION_FAMILY
     };
 
+    inline bool is_scalar_reduction(scheduler::operation_node_type type){
+        return type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE || type==scheduler::OPERATION_UNARY_REDUCE_TYPE;
+    }
+
     enum expression_type{
       SCALAR_SAXPY_TYPE,
       VECTOR_SAXPY_TYPE,
@@ -88,6 +92,21 @@ namespace viennacl{
         expression_type type;
         std::size_t scalartype_size;
     };
+
+    /** @brief Exception for the case the generator is unable to deal with the operation */
+    class generator_not_supported_exception : public std::exception
+    {
+    public:
+      generator_not_supported_exception() : message_() {}
+      generator_not_supported_exception(std::string message) : message_("ViennaCL: Internal error: The scheduler encountered a problem with the operation provided: " + message) {}
+
+      virtual const char* what() const throw() { return message_.c_str(); }
+
+      virtual ~generator_not_supported_exception() throw() {}
+    private:
+      std::string message_;
+    };
+
 
 
     namespace utils{

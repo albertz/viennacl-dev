@@ -94,16 +94,15 @@ namespace viennacl{
         /** @brief Fills the expression descriptor for an operation of the type scalar = RHS */
         static void fill_expression_descriptor_scalar(scheduler::statement const & statement, scheduler::statement_node const & root_node, expression_descriptor & descriptor){
           scheduler::statement::container_type const & expr = statement.array();
-          bool is_invalid = (root_node.op.type == OPERATION_BINARY_MAT_VEC_PROD_TYPE)
-                          || (descriptor.type_family==SCALAR_REDUCE_FAMILY && root_node.op.type == OPERATION_BINARY_INNER_PROD_TYPE);
-          if(is_invalid){
-            descriptor.type_family =INVALID_EXPRESSION_FAMILY;
-            descriptor.type = INVALID_EXPRESSION_TYPE;
+          if(descriptor.type_family == SCALAR_SAXPY_FAMILY && is_scalar_reduction(root_node.op.type)){
+              descriptor.type_family = SCALAR_REDUCE_FAMILY;
+              descriptor.type = SCALAR_REDUCE_TYPE;
           }
-          else if(root_node.op.type==OPERATION_BINARY_INNER_PROD_TYPE){
-            descriptor.type_family = SCALAR_REDUCE_FAMILY;
-            descriptor.type = SCALAR_REDUCE_TYPE;
+          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY){
+              descriptor.type_family=INVALID_EXPRESSION_FAMILY;
+              descriptor.type=INVALID_EXPRESSION_TYPE;
           }
+
           if(descriptor.type_family!=INVALID_EXPRESSION_FAMILY && root_node.lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
             fill_expression_descriptor_scalar(statement, expr[root_node.lhs.node_index],descriptor);
           if(descriptor.type_family!=INVALID_EXPRESSION_FAMILY && root_node.rhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
@@ -113,19 +112,16 @@ namespace viennacl{
         /** @brief Fills the expression descriptor for an operation of the type vector = RHS */
         static void fill_expression_descriptor_vector(scheduler::statement const & statement, scheduler::statement_node const & root_node, expression_descriptor & descriptor){
           scheduler::statement::container_type const & expr = statement.array();
-          bool is_invalid =  (root_node.op.type == OPERATION_BINARY_INNER_PROD_TYPE)
-                          || (root_node.op.type == OPERATION_BINARY_MAT_MAT_PROD_TYPE)
-                          || (descriptor.type_family==VECTOR_REDUCE_FAMILY && root_node.op.type == OPERATION_BINARY_MAT_VEC_PROD_TYPE);
-          if(is_invalid){
-            descriptor.type_family=INVALID_EXPRESSION_FAMILY;
-            descriptor.type=INVALID_EXPRESSION_TYPE;
+          if(descriptor.type_family == VECTOR_SAXPY_FAMILY && root_node.op.type == OPERATION_BINARY_MAT_VEC_PROD_TYPE){
+              descriptor.type_family=VECTOR_REDUCE_FAMILY;
+              if(is_lhs_flow_transposed(statement,root_node))
+                  descriptor.type=VECTOR_REDUCE_Tx_TYPE;
+              else
+                  descriptor.type=VECTOR_REDUCE_Nx_TYPE;
           }
-          else if(root_node.op.type==OPERATION_BINARY_MAT_VEC_PROD_TYPE){
-            descriptor.type_family=VECTOR_REDUCE_FAMILY;
-            if(is_lhs_flow_transposed(statement,root_node))
-              descriptor.type=VECTOR_REDUCE_Tx_TYPE;
-            else
-              descriptor.type=VECTOR_REDUCE_Nx_TYPE;
+          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY){
+              descriptor.type_family=INVALID_EXPRESSION_FAMILY;
+              descriptor.type=INVALID_EXPRESSION_TYPE;
           }
           if(descriptor.type_family!=INVALID_EXPRESSION_FAMILY && root_node.lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
             fill_expression_descriptor_vector(statement, expr[root_node.lhs.node_index],descriptor);
@@ -136,26 +132,22 @@ namespace viennacl{
         /** @brief Fills the expression descriptor for an operation of the type matrix = RHS */
         static void fill_expression_descriptor_matrix(scheduler::statement const & statement, scheduler::statement_node const & root_node, expression_descriptor & descriptor){
           scheduler::statement::container_type const & expr = statement.array();
-          bool is_invalid =  (root_node.op.type == OPERATION_BINARY_INNER_PROD_TYPE)
-                          || (root_node.op.type == OPERATION_BINARY_MAT_VEC_PROD_TYPE)
-                          || (descriptor.type_family==MATRIX_PRODUCT_FAMILY && root_node.op.type == OPERATION_BINARY_MAT_MAT_PROD_TYPE);
-          if(is_invalid){
-            descriptor.type_family=INVALID_EXPRESSION_FAMILY;
-            descriptor.type=INVALID_EXPRESSION_TYPE;
+          if(descriptor.type_family == MATRIX_SAXPY_FAMILY && root_node.op.type == OPERATION_BINARY_MAT_MAT_PROD_TYPE){
+              descriptor.type_family=MATRIX_PRODUCT_FAMILY;
+              bool lhs_trans = is_lhs_flow_transposed(statement,root_node);
+              bool rhs_trans = is_rhs_flow_transposed(statement,root_node);
+              if(!lhs_trans && !rhs_trans)
+                descriptor.type=MATRIX_PRODUCT_NN_TYPE;
+              else if(lhs_trans && !rhs_trans)
+                descriptor.type=MATRIX_PRODUCT_TN_TYPE;
+              else if(!lhs_trans && rhs_trans)
+                descriptor.type=MATRIX_PRODUCT_NT_TYPE;
+              else if(lhs_trans && rhs_trans)
+                descriptor.type=MATRIX_PRODUCT_TT_TYPE;
           }
-          else if(root_node.op.type==OPERATION_BINARY_MAT_MAT_PROD_TYPE){
-            descriptor.type_family=MATRIX_PRODUCT_FAMILY;
-            bool lhs_trans = is_lhs_flow_transposed(statement,root_node);
-            bool rhs_trans = is_rhs_flow_transposed(statement,root_node);
-            if(!lhs_trans && !rhs_trans)
-              descriptor.type=MATRIX_PRODUCT_NN_TYPE;
-            else if(lhs_trans && !rhs_trans)
-              descriptor.type=MATRIX_PRODUCT_TN_TYPE;
-            else if(!lhs_trans && rhs_trans)
-              descriptor.type=MATRIX_PRODUCT_NT_TYPE;
-            else if(lhs_trans && rhs_trans)
-              descriptor.type=MATRIX_PRODUCT_TT_TYPE;
-
+          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY){
+              descriptor.type_family=INVALID_EXPRESSION_FAMILY;
+              descriptor.type=INVALID_EXPRESSION_TYPE;
           }
           if(descriptor.type_family!=INVALID_EXPRESSION_FAMILY && root_node.lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
             fill_expression_descriptor_matrix(statement, expr[root_node.lhs.node_index],descriptor);

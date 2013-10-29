@@ -57,15 +57,6 @@ namespace viennacl{
           case OPERATION_UNARY_ABS_TYPE : return "abs";
           case OPERATION_BINARY_ELEMENT_POW_TYPE : return "pow";
 
-          //Unary
-          case OPERATION_UNARY_TRANS_TYPE : return "trans";
-
-          //Binary
-          //Leaves
-          case OPERATION_BINARY_INNER_PROD_TYPE : return "iprod";
-          case OPERATION_BINARY_MAT_MAT_PROD_TYPE : return "mmprod";
-          case OPERATION_BINARY_MAT_VEC_PROD_TYPE : return "mvprod";
-
           //Arithmetic
           case OPERATION_BINARY_ASSIGN_TYPE : return "=";
           case OPERATION_BINARY_INPLACE_ADD_TYPE : return "+=";
@@ -84,50 +75,62 @@ namespace viennacl{
           case OPERATION_BINARY_ELEMENT_LESS_TYPE : return "<";
           case OPERATION_BINARY_ELEMENT_LEQ_TYPE : return "<=";
 
+          //Unary
+          case OPERATION_UNARY_TRANS_TYPE : return "trans";
+          case OPERATION_UNARY_REDUCE_TYPE : return "reduce";
 
-          default : throw "not implemented";
+          //Binary
+          //Leaves
+          case OPERATION_BINARY_INNER_PROD_TYPE : return "iprod";
+          case OPERATION_BINARY_MAT_MAT_PROD_TYPE : return "mmprod";
+          case OPERATION_BINARY_MAT_VEC_PROD_TYPE : return "mvprod";
+
+
+          default : throw generator_not_supported_exception("Unsupported operator");
         }
       }
 
       /** @brief Recursively execute a functor on a statement */
       template<class Fun>
       static void traverse(scheduler::statement const & statement, scheduler::statement_node const & root_node, Fun const & fun, bool recurse_structurewise_function /* see forwards.h for default argument */){
+        bool recurse = recurse_structurewise_function || root_node.op.type_subfamily!=scheduler::OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY;
 
         if(root_node.op.type_family==OPERATION_UNARY_TYPE_FAMILY)
         {
           //Self:
           fun(&statement, &root_node, PARENT_NODE_TYPE);
 
-          //Lhs:
-          fun.call_before_expansion(&root_node);
-
-          if(root_node.lhs.type_family==COMPOSITE_OPERATION_FAMILY)
-              traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_structurewise_function);
-          fun(&statement, &root_node, LHS_NODE_TYPE);
-
-          fun.call_after_expansion(&root_node);
+          if(recurse){
+              //Lhs:
+              fun.call_before_expansion(&root_node);
+              if(root_node.lhs.type_family==COMPOSITE_OPERATION_FAMILY)
+                traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_structurewise_function);
+              fun(&statement, &root_node, LHS_NODE_TYPE);
+              fun.call_after_expansion(&root_node);
+          }
         }
         else if(root_node.op.type_family==OPERATION_BINARY_TYPE_FAMILY)
         {
-          bool deep_recursion = recurse_structurewise_function || root_node.op.type_subfamily!=scheduler::OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY;
 
           fun.call_before_expansion(&root_node);
 
           //Lhs:
-          if(deep_recursion){
+          if(recurse){
             if(root_node.lhs.type_family==COMPOSITE_OPERATION_FAMILY)
               traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_structurewise_function);
-            fun(&statement, &root_node, LHS_NODE_TYPE);
+            if(root_node.lhs.type_family != scheduler::INVALID_TYPE_FAMILY)
+              fun(&statement, &root_node, LHS_NODE_TYPE);
           }
 
           //Self:
           fun(&statement, &root_node, PARENT_NODE_TYPE);
 
           //Rhs:
-          if(deep_recursion){
+          if(recurse){
             if(root_node.rhs.type_family==COMPOSITE_OPERATION_FAMILY)
               traverse(statement, statement.array()[root_node.rhs.node_index], fun, recurse_structurewise_function);
-            fun(&statement, &root_node, RHS_NODE_TYPE);
+            if(root_node.rhs.type_family != scheduler::INVALID_TYPE_FAMILY)
+              fun(&statement, &root_node, RHS_NODE_TYPE);
           }
 
           fun.call_after_expansion(&root_node);

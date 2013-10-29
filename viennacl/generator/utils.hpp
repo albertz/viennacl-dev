@@ -25,10 +25,9 @@
 
 #include <sstream>
 
+#include "viennacl/generator/forwards.h"
 #include "viennacl/ocl/forwards.h"
-
 #include "viennacl/traits/size.hpp"
-
 #include "viennacl/scheduler/forwards.h"
 
 namespace viennacl{
@@ -46,7 +45,7 @@ namespace viennacl{
         case scheduler::DOUBLE_TYPE :
             return fun(element.host_double);
         default :
-            throw "not implemented";
+            throw generator_not_supported_exception("Unsupported Scalartype");
         }
     }
 
@@ -59,7 +58,7 @@ namespace viennacl{
         case scheduler::DOUBLE_TYPE :
             return fun(*element.scalar_double);
         default :
-            throw "not implemented";
+            throw generator_not_supported_exception("Unsupported Scalartype");
         }
     }
 
@@ -72,7 +71,7 @@ namespace viennacl{
         case scheduler::DOUBLE_TYPE :
             return fun(*element.vector_double);
         default :
-            throw "not implemented";
+            throw generator_not_supported_exception("Unsupported Scalartype");
         }
     }
 
@@ -86,7 +85,7 @@ namespace viennacl{
         case scheduler::DOUBLE_TYPE :
             return fun(*element.implicit_vector_double);
         default :
-            throw "not implemented";
+            throw generator_not_supported_exception("Unsupported Scalartype");
         }
     }
 
@@ -101,7 +100,7 @@ namespace viennacl{
             case scheduler::DOUBLE_TYPE :
                 return fun(*element.matrix_row_double);
             default :
-                throw "not implemented";
+                throw generator_not_supported_exception("Unsupported Scalartype");
             }
         }
         else
@@ -112,7 +111,7 @@ namespace viennacl{
             case scheduler::DOUBLE_TYPE :
                 return fun(*element.matrix_col_double);
             default :
-                throw "not implemented";
+                throw generator_not_supported_exception("Unsupported Scalartype");
             }
         }
     }
@@ -128,7 +127,7 @@ namespace viennacl{
         case scheduler::DOUBLE_TYPE :
             return fun(*element.implicit_matrix_double);
         default :
-            throw "not implemented";
+            throw generator_not_supported_exception("Unsupported Scalartype");
         }
     }
 
@@ -151,7 +150,7 @@ namespace viennacl{
             else
               return call_on_matrix(element,fun);
           default:
-            throw "not implemented";
+            throw generator_not_supported_exception("Unsupported datastructure type : Not among {Scalar, Vector, Matrix}");
         }
       }
 

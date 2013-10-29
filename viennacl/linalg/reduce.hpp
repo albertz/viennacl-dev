@@ -34,15 +34,23 @@ namespace viennacl
   namespace linalg
   {
 
-    // ----------------------------------------------------
     template<typename OP, typename NumericT>
     viennacl::scalar_expression< const vector_base<NumericT>, const vector_base<NumericT>, viennacl::op_reduce<OP> >
     reduce(vector_base<NumericT> const & vector)
     {
-      //std::cout << "viennacl .. " << std::endl;
       return viennacl::scalar_expression< const vector_base<NumericT>,
                                           const vector_base<NumericT>,
                                           viennacl::op_reduce<OP> >(vector, vector);
+    }
+    template< typename ROP, typename LHS, typename RHS, typename OP>
+    viennacl::scalar_expression< const viennacl::vector_expression<LHS, RHS, OP>,
+                                 const viennacl::vector_expression<LHS, RHS, OP>,
+                                 viennacl::op_reduce<ROP> >
+    reduce(viennacl::vector_expression<LHS, RHS, OP> const & vector)
+    {
+        return  viennacl::scalar_expression< const viennacl::vector_expression<LHS, RHS, OP>,
+                                            const viennacl::vector_expression<LHS, RHS, OP>,
+                                            viennacl::op_reduce<ROP> >(vector,vector);
     }
 
   } // end namespace linalg

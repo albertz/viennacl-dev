@@ -144,12 +144,11 @@ namespace viennacl{
             else if(node_type == RHS_NODE_TYPE && root_node->rhs.type_family != scheduler::COMPOSITE_OPERATION_FAMILY)
                  mapping_.insert(mapping_type::value_type(key,  utils::call_on_element(root_node->rhs, *this)));
             else if( node_type== PARENT_NODE_TYPE){
-                  operation_node_type op_type = root_node->op.type;
-                if(op_type == OPERATION_BINARY_INNER_PROD_TYPE)
+                if(is_scalar_reduction(root_node->op.type))
                   mapping_.insert(mapping_type::value_type(key, binary_leaf<mapped_scalar_reduction>(statement, root_node, &mapping_)));
-                else if(op_type == OPERATION_BINARY_MAT_VEC_PROD_TYPE)
+                else if(root_node->op.type == OPERATION_BINARY_MAT_VEC_PROD_TYPE)
                   mapping_.insert(mapping_type::value_type(key, binary_leaf<mapped_vector_reduction>(statement, root_node, &mapping_)));
-                else if(op_type == OPERATION_BINARY_MAT_MAT_PROD_TYPE)
+                else if(root_node->op.type == OPERATION_BINARY_MAT_MAT_PROD_TYPE)
                   mapping_.insert(mapping_type::value_type(key, binary_leaf<mapped_matrix_product>(statement, root_node, &mapping_)));
             }
           }

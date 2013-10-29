@@ -255,10 +255,9 @@ int test_vector ( Epsilon const& epsilon) {
         s = 0;
         for(unsigned int i=0 ; i<size ; ++i)  s+=cx[i];
         viennacl::scheduler::statement statement(gs, viennacl::op_assign(), viennacl::linalg::reduce<viennacl::op_add>(x));
-        std::cout << statement << std::endl;
-//        generator::generate_enqueue_statement(statement, statement.array()[0]);
-//        viennacl::backend::finish();
-//        CHECK_RESULT(s, gs, s = reduce<add>(x));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(s, gs, s = reduce<add>(x));
     }
 
 
@@ -290,11 +289,10 @@ int test_vector ( Epsilon const& epsilon) {
 //        std::cout << "s = inner_prod(x,y)..." << std::endl;
 //        s = 0;
 //        for(unsigned int i=0 ; i<size ; ++i)  s+=cx[i]*cy[i];
-//        generator::custom_operation op;
-//        op.add(scal(gs)= generator::inner_prod(vec(x), vec(y)));
-//        op.execute();
+//        viennacl::scheduler::statement statement(gs, viennacl::op_assign(), viennacl::linalg::inner_prod(x,y));
+//        generator::generate_enqueue_statement(statement, statement.array()[0]);
 //        viennacl::backend::finish();
-//        CHECK_RESULT(s,gs, s=inner_prod(x,y));
+//        CHECK_RESULT(s, gs, s = inner_prod(x,y));
 //    }
 
 //    {

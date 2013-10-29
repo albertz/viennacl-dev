@@ -82,14 +82,13 @@ namespace viennacl{
               scheduler::statement::container_type const & array = it->first.array();
               std::size_t size_of_scalartype;
               const char * scalartype_name;
-              if (array[0].lhs.type_family != scheduler::SCALAR_TYPE_FAMILY) throw "not implemented";
               switch(array[0].lhs.numeric_type){
                 case scheduler::FLOAT_TYPE: scalartype_name = "float"; size_of_scalartype = sizeof(float); break;
                 case scheduler::DOUBLE_TYPE: scalartype_name = "double"; size_of_scalartype = sizeof(double); break;
-                default: throw "not implemented";
+                default : throw generator_not_supported_exception("Unsupported scalartype");
               }
               for(scheduler::statement::container_type::const_iterator iit = array.begin() ; iit != array.end() ; ++iit){
-                if(iit->op.type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE){
+                if(is_scalar_reduction(iit->op.type)){
                   temporaries_.push_back(std::make_pair(scalartype_name, viennacl::ocl::current_context().create_memory(CL_MEM_READ_WRITE, num_groups_*size_of_scalartype)));
                 }
               }
@@ -100,7 +99,7 @@ namespace viennacl{
         void set_size_argument(viennacl::scheduler::statement const & s, viennacl::scheduler::statement_node const & /*root_node*/, unsigned int & n_arg, viennacl::ocl::kernel & k) const {
           scheduler::statement::container_type exprs = s.array();
           for(scheduler::statement::container_type::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
-            if(it->op.type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE){
+            if(is_scalar_reduction(it->op.type)){
               //set size argument
               scheduler::statement_node const * current_node = &(*it);
 
@@ -228,16 +227,20 @@ namespace viennacl{
               for(unsigned int a = 0 ; a < simd_width_ ; ++a){
                 std::string str;
                 detail::generate_all_lhs(statement,root_node,std::make_pair("i","0"),a,str,(*it)->mapping());
-                str += "*";
-                detail::generate_all_rhs(statement,root_node,std::make_pair("i","0"),a,str,(*it)->mapping());
+                if(root_node.op.type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE){
+                    str += "*";
+                    detail::generate_all_rhs(statement,root_node,std::make_pair("i","0"),a,str,(*it)->mapping());
+                }
                 stream << " sum" << std::distance(exprs.begin(),it) << " += "  << str << ";" << std::endl;
               }
             }
             else{
               std::string str;
               detail::generate_all_lhs(statement,root_node,std::make_pair("i","0"),-1,str,(*it)->mapping());
-              str += "*";
-              detail::generate_all_rhs(statement,root_node,std::make_pair("i","0"),-1,str,(*it)->mapping());
+              if(is_scalar_reduction(root_node.op.type)){
+                  str += "*";
+                  detail::generate_all_rhs(statement,root_node,std::make_pair("i","0"),-1,str,(*it)->mapping());
+              }
               stream << " sum" << std::distance(exprs.begin(),it) << " += "  << str << ";" << std::endl;
             }
           }
