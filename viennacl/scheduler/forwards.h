@@ -89,7 +89,6 @@ namespace viennacl
       OPERATION_UNARY_TANH_TYPE,
 
       //structurewise functions
-      OPERATION_UNARY_REDUCE_TYPE,
       OPERATION_UNARY_TRANS_TYPE,
       OPERATION_UNARY_NORM_1_TYPE,
       OPERATION_UNARY_NORM_2_TYPE,
@@ -117,7 +116,8 @@ namespace viennacl
       //structurewise functions
       OPERATION_BINARY_MAT_VEC_PROD_TYPE,
       OPERATION_BINARY_MAT_MAT_PROD_TYPE,
-      OPERATION_BINARY_INNER_PROD_TYPE
+      OPERATION_BINARY_INNER_PROD_TYPE,
+      OPERATION_BINARY_REDUCE_TYPE //Binary because the RHS node contains the operator
 
 
     };
@@ -152,7 +152,6 @@ namespace viennacl
       template <> struct op_type_info<op_element_unary<op_tanh>  >      { enum { id = OPERATION_UNARY_TANH_TYPE,         family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY }; };
 
       //structurewise function
-      template <typename OP> struct op_type_info<op_reduce<OP>   >      { enum { id = OPERATION_UNARY_REDUCE_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_norm_1                  >      { enum { id = OPERATION_UNARY_NORM_1_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_norm_2                  >      { enum { id = OPERATION_UNARY_NORM_2_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_norm_inf                >      { enum { id = OPERATION_UNARY_NORM_INF_TYPE,     family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
@@ -184,6 +183,7 @@ namespace viennacl
       template <> struct op_type_info<op_prod>                          { enum { id = OPERATION_BINARY_MAT_VEC_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_mat_mat_prod>                  { enum { id = OPERATION_BINARY_MAT_MAT_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_inner_prod>                    { enum { id = OPERATION_BINARY_INNER_PROD_TYPE,   family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
+      template <typename OP> struct op_type_info<op_reduce<OP>   >      { enum { id = OPERATION_BINARY_REDUCE_TYPE,       family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
 
     } // namespace result_of
 
@@ -712,14 +712,15 @@ namespace viennacl
             array_[current_index].rhs.type_family  = INVALID_TYPE_FAMILY;
             array_[current_index].rhs.subtype      = INVALID_SUBTYPE;
             array_[current_index].rhs.numeric_type = INVALID_NUMERIC_TYPE;
-
-            if(array_[current_index].op.type == OPERATION_UNARY_REDUCE_TYPE)
-            {
-                array_[current_index].rhs.type_family  = COMPOSITE_OPERATION_FAMILY;
-                array_[current_index].rhs.node_index = next_free;
-                next_free = fill_reduction_node(next_free, next_free+1, OP());
-            }
-
+            return add_lhs(current_index, next_free, proxy.lhs());
+          }
+          else if(array_[current_index].op.type == OPERATION_BINARY_REDUCE_TYPE)
+          {
+            array_[current_index].rhs.type_family  = COMPOSITE_OPERATION_FAMILY;
+            array_[current_index].rhs.subtype      = INVALID_SUBTYPE;
+            array_[current_index].rhs.numeric_type = INVALID_NUMERIC_TYPE;
+            array_[current_index].rhs.node_index = next_free;
+            next_free = fill_reduction_node(next_free, next_free+1, OP());
             return add_lhs(current_index, next_free, proxy.lhs());
           }
 

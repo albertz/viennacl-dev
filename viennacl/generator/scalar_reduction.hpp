@@ -69,6 +69,95 @@ namespace viennacl{
           }
         }
 
+        static void reduction_computation(utils::kernel_generation_stream & os, std::string const & acc, std::string const & val, scheduler::op_element const & op){
+            os << acc << "=";
+            if(op.type_subfamily==scheduler::OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY)
+                os << detail::generate(op.type) << "(" << acc << "," << val << ")";
+            else
+                os << "(" << acc << ")" << detail::generate(op.type)  << "(" << val << ")";
+            os << ";" << std::endl;
+
+        }
+
+        static void reduce_local_memory(utils::kernel_generation_stream & stream, std::size_t size, std::vector<std::string> const & bufs, std::vector<scheduler::op_element> const & rops)
+        {
+            //Reduce local memory
+            for(std::size_t stride = size/2 ; stride>1 ; stride /=2){
+              stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
+              stream << "if(lid < " << stride << "){" << std::endl;
+              stream.inc_tab();
+              for(std::size_t k = 0 ; k < bufs.size() ; ++k){
+                  std::string acc = bufs[k] + "[lid]";
+                  std::string str = bufs[k] + "[lid + " + utils::to_string(stride) + "]";
+                  reduction_computation(stream,acc,str,rops[k]);
+              }
+              stream.dec_tab();
+              stream << "}" << std::endl;
+            }
+
+            //Last reduction and write back to temporary buffer
+            stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
+            stream << "if(lid==0){" << std::endl;
+            stream.inc_tab();
+            for(std::size_t k = 0 ; k < bufs.size() ; ++k){
+                std::string acc = bufs[k] + "[0]";
+                std::string str = bufs[k] + "[1]";
+                reduction_computation(stream,acc,str,rops[k]);
+            }
+            stream.dec_tab();;
+            stream << "}" << std::endl;
+        }
+
+        void accumulate_step(utils::kernel_generation_stream& stream
+                        ,std::vector<detail::mapped_scalar_reduction*> exprs
+                        ,std::vector<std::string> const & accs
+                        ,std::vector<scheduler::op_element> const & rops
+                        ,bool first_step
+                        ,std::string const & index) const{
+          //Fetch vector entry
+          std::set<std::string>  fetched;
+          for(std::vector<detail::mapped_scalar_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it)
+          {
+            viennacl::scheduler::statement const & statement = (*it)->statement();
+            viennacl::scheduler::statement_node const & root_node = (*it)->root_node();
+            detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair(index, "0"),stream,(*it)->mapping());
+            detail::fetch_all_rhs(fetched,statement,root_node, std::make_pair(index, "0"),stream,(*it)->mapping());
+          }
+          //Update sums;
+          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
+          {
+            viennacl::scheduler::statement const & statement = exprs[k]->statement();
+            viennacl::scheduler::statement_node const & root_node = exprs[k]->root_node();
+            detail::mapping_type const & mapping = exprs[k]->mapping();
+            if(simd_width_ > 1){
+              for(unsigned int a = 0 ; a < simd_width_ ; ++a){
+                std::string str;
+                detail::generate_all_lhs(statement,root_node,std::make_pair(index,"0"),a,str,mapping);
+                if(root_node.op.type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE){
+                    str += "*";
+                    detail::generate_all_rhs(statement,root_node,std::make_pair(index,"0"),a,str,mapping);
+                }
+                if(first_step && a==0)
+                  stream << accs[k] << "=" << str << ";" << std::endl;
+                else
+                  reduction_computation(stream,accs[k],str,rops[k]);
+              }
+            }
+            else{
+              std::string str;
+              detail::generate_all_lhs(statement,root_node,std::make_pair(index,"0"),-1,str,mapping);
+              if(root_node.op.type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE){
+                  str += "*";
+                  detail::generate_all_rhs(statement,root_node,std::make_pair(index,"0"),-1,str,mapping);
+              }
+              if(first_step)
+                stream << accs[k] << "=" << str << ";" << std::endl;
+              else
+                reduction_computation(stream,accs[k],str,rops[k]);
+            }
+          }
+        }
+
       public:
 
         std::size_t lmem_used(std::size_t scalartype_size) const {
@@ -191,143 +280,137 @@ namespace viennacl{
       private:
 
         void core_0(utils::kernel_generation_stream& stream, std::vector<detail::mapped_scalar_reduction*> exprs, std::vector<const char *> const & scalartypes, statements_type const & /*statements*/, std::vector<detail::mapping_type> const & /*mapping*/) const {
+          std::size_t N = exprs.size();
+
+          std::vector<scheduler::op_element> rops(N);
+          std::vector<std::string> accs(N);
+          std::vector<std::string> local_buffers_names(N);
+          for(std::size_t k = 0 ; k < N ; ++k){
+            scheduler::op_element root_op = exprs[k]->root_node().op;
+            if(root_op.type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE){
+              rops[k].type_family = scheduler::OPERATION_BINARY_TYPE_FAMILY;
+              rops[k].type_subfamily = scheduler::OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY;
+              rops[k].type        = scheduler::OPERATION_BINARY_ADD_TYPE;
+            }
+            else{
+              rops[k] = exprs[k]->statement().array()[exprs[k]->root_node().rhs.node_index].op;
+            }
+            accs[k] = "sum"+utils::to_string(k);
+            local_buffers_names[k] = "buf"+utils::to_string(k);
+          }
 
           stream << "unsigned int lid = get_local_id(0);" << std::endl;
 
-          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            stream << scalartypes[k] << " sum" << k << " = 0;" << std::endl;
+          for(std::size_t k = 0 ; k < N ; ++k)
+            stream << scalartypes[k] << " " << accs[k] << " = 0;" << std::endl;
 
+          std::string upper_bound;
+          std::string inc;
           if(decomposition_){
-            stream << "for(unsigned int i = get_global_id(0) ; i < N ; i += get_global_size(0)){" << std::endl;
+            stream << "unsigned int i = get_global_id(0);" << std::endl;
+            upper_bound = "N";
+            inc = "get_global_size(0)";
           }
           else{
             stream << "unsigned int chunk_size = (N + get_num_groups(0)-1)/get_num_groups(0);" << std::endl;
             stream << "unsigned int chunk_start = get_group_id(0)*chunk_size;" << std::endl;
             stream << "unsigned int chunk_end = min(chunk_start+chunk_size, N);" << std::endl;
-            stream << "for(unsigned int i = chunk_start + get_local_id(0) ; i < chunk_end ; i += get_local_size(0)){" << std::endl;
+            stream << "unsigned int i = chunk_start + get_local_id(0);" << std::endl;
+            upper_bound = "chunk_end";
+            inc = "get_local_size(0)";
           }
+
+          stream << "if(i < " << upper_bound << "){" << std::endl;
           stream.inc_tab();
-
-          //Fetch vector entry
-          std::set<std::string>  fetched;
-
-          for(std::vector<detail::mapped_scalar_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
-            viennacl::scheduler::statement const & statement = (*it)->statement();
-            viennacl::scheduler::statement_node const & root_node = (*it)->root_node();
-            detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair("i", "0"),stream,(*it)->mapping());
-            detail::fetch_all_rhs(fetched,statement,root_node, std::make_pair("i", "0"),stream,(*it)->mapping());
-          }
-
-
-          //Update sums;
-          for(std::vector<detail::mapped_scalar_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
-            viennacl::scheduler::statement const & statement = (*it)->statement();
-            viennacl::scheduler::statement_node const & root_node = (*it)->root_node();
-            if(simd_width_ > 1){
-              for(unsigned int a = 0 ; a < simd_width_ ; ++a){
-                std::string str;
-                detail::generate_all_lhs(statement,root_node,std::make_pair("i","0"),a,str,(*it)->mapping());
-                if(root_node.op.type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE){
-                    str += "*";
-                    detail::generate_all_rhs(statement,root_node,std::make_pair("i","0"),a,str,(*it)->mapping());
-                }
-                stream << " sum" << std::distance(exprs.begin(),it) << " += "  << str << ";" << std::endl;
-              }
-            }
-            else{
-              std::string str;
-              detail::generate_all_lhs(statement,root_node,std::make_pair("i","0"),-1,str,(*it)->mapping());
-              if(is_scalar_reduction(root_node.op.type)){
-                  str += "*";
-                  detail::generate_all_rhs(statement,root_node,std::make_pair("i","0"),-1,str,(*it)->mapping());
-              }
-              stream << " sum" << std::distance(exprs.begin(),it) << " += "  << str << ";" << std::endl;
-            }
-          }
-
-
+          accumulate_step(stream,exprs,accs,rops,true,"i");
+          stream << "i+=" << inc << ";" << std::endl;
           stream.dec_tab();
           stream << "}" << std::endl;
+
+
+          if(decomposition_)
+            stream << "for( ; i < N ; i += get_global_size(0)){" << std::endl;
+          else
+            stream << "for(; i < chunk_end ; i += get_local_size(0)){" << std::endl;
+
+          stream.inc_tab();
+          accumulate_step(stream,exprs,accs,rops,false,"i");
+          stream.dec_tab();
+          stream << "}" << std::endl;
+
+
           //Declare and fill local memory
-          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            stream << "__local " << scalartypes[k] << " buf" << k << "[" << local_size_1_ << "];" << std::endl;
+          for(std::size_t k = 0 ; k < N ; ++k)
+            stream << "__local " << scalartypes[k] << " " << local_buffers_names[k] << "[" << local_size_1_ << "];" << std::endl;
 
-          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            stream << "buf" << k << "[lid] = sum" << k << ";" << std::endl;
+          for(std::size_t k = 0 ; k < N ; ++k)
+            stream << local_buffers_names[k] << "[lid] = sum" << k << ";" << std::endl;
 
-          //Reduce local memory
-          for(unsigned int stride = local_size_1_/2 ; stride>1 ; stride /=2){
-            stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
-            stream << "if(lid < " << stride << "){" << std::endl;
-            stream.inc_tab();
-            for(std::size_t k = 0 ; k < exprs.size() ; ++k){
-              stream << "buf" << k << "[lid] += buf" << k << "[lid + " << stride << "];" << std::endl;
-            }
-            stream.dec_tab();
-            stream << "}" << std::endl;
-          }
+          //Reduce and write to temporary buffers
+          reduce_local_memory(stream, local_size_1_,local_buffers_names,rops);
 
-          //Last reduction and write back to temporary buffer
-          stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
           stream << "if(lid==0){" << std::endl;
           stream.inc_tab();
-          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            stream << "buf" << k << "[0] += buf" << k << "[1];" << std::endl;
-
-          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
+          for(std::size_t k = 0 ; k < N ; ++k)
             stream << "temp"<< k << "[get_group_id(0)] = buf" << k << "[0];" << std::endl;
-
           stream.dec_tab();
           stream << "}" << std::endl;
         }
 
 
         void core_1(utils::kernel_generation_stream& stream, std::vector<detail::mapped_scalar_reduction*> exprs, std::vector<const char *> scalartypes, statements_type const & statements, std::vector<detail::mapping_type> const & mapping) const {
+          std::size_t N = exprs.size();
+          std::vector<scheduler::op_element> rops(N);
+          std::vector<std::string> accs(N);
+          std::vector<std::string> local_buffers_names(N);
+          for(std::size_t k = 0 ; k < N ; ++k){
+            scheduler::op_element root_op = exprs[k]->root_node().op;
+            if(root_op.type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE){
+              rops[k].type_family = scheduler::OPERATION_BINARY_TYPE_FAMILY;
+              rops[k].type_subfamily = scheduler::OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY;
+              rops[k].type        = scheduler::OPERATION_BINARY_ADD_TYPE;
+            }
+            else{
+              rops[k] = exprs[k]->statement().array()[exprs[k]->root_node().rhs.node_index].op;
+            }
+            accs[k] = "sum"+utils::to_string(k);
+            local_buffers_names[k] = "buf"+utils::to_string(k);
+          }
+
+
+
           stream << "unsigned int lid = get_local_id(0);" << std::endl;
 
           for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            stream << "__local " << scalartypes[k] << " buf" << k << "[" << local_size_1_ << "];" << std::endl;
+            stream << "__local " << scalartypes[k] << " " << local_buffers_names[k] << "[" << local_size_1_ << "];" << std::endl;
 
-          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            stream << scalartypes[0] << " sum" << k << " = 0;" << std::endl;
+          for(std::size_t k = 0 ; k < local_buffers_names.size() ; ++k)
+            stream << scalartypes[0] << " " << accs[k] << " = 0;" << std::endl;
 
           stream << "for(unsigned int i = lid ; i < " << num_groups_ << " ; i += get_local_size(0)){" << std::endl;
           stream.inc_tab();
-          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            stream << "sum" << k << " += temp" << k << "[i];" << std::endl;
+          for(std::size_t k = 0 ; k < N ; ++k)
+            reduction_computation(stream,accs[k],"temp"+utils::to_string(k)+"[i]",rops[k]);
           stream.dec_tab();
           stream << "}" << std::endl;
 
-          for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            stream << "buf" << k << "[lid] = sum" << k << ";" << std::endl;
+          for(std::size_t k = 0 ; k < local_buffers_names.size() ; ++k)
+             stream << local_buffers_names[k] << "[lid] = sum" << k << ";" << std::endl;
 
-          //Reduce local memory
-          for(unsigned int stride = local_size_1_/2 ; stride>1 ; stride /=2){
-            stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
-            stream << "if(lid < " << stride << "){" << std::endl;
-            stream.inc_tab();
-            for(std::size_t k = 0 ; k < exprs.size() ; ++k){
-              stream << "buf" << k << "[lid] += buf" << k << "[lid + " << stride << "];" << std::endl;
-            }
-            stream.dec_tab();
-            stream << "}" << std::endl;
-          }
 
-          stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
+          //Reduce and write final result
+          reduce_local_memory(stream, local_size_1_,local_buffers_names,rops);
+          for(std::size_t k = 0 ; k < N ; ++k)
+            exprs[k]->access_name(local_buffers_names[k]+"[0]");
+
           stream << "if(lid==0){" << std::endl;
           stream.inc_tab();
-          for(std::size_t k = 0 ; k < exprs.size() ; ++k){
-            stream << "buf" << k << "[0] += buf" << k << "[1];" << std::endl;
-            exprs[k]->access_name("buf"+utils::to_string(k)+"[0]");
-          }
-
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
             std::string str;
             detail::traverse(it->first, it->second, detail::expression_generation_traversal(std::make_pair("0", "0"), -1, str, mapping[i++]), false);
             stream << str << ";" << std::endl;
           }
-
           stream.dec_tab();
           stream << "}" << std::endl;
         }

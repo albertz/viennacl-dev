@@ -77,7 +77,7 @@ namespace viennacl{
 
           //Unary
           case OPERATION_UNARY_TRANS_TYPE : return "trans";
-          case OPERATION_UNARY_REDUCE_TYPE : return "reduce";
+          case OPERATION_BINARY_REDUCE_TYPE : return "reduce";
 
           //Binary
           //Leaves

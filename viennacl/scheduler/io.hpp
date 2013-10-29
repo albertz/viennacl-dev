@@ -68,8 +68,6 @@ namespace viennacl
             VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_UNARY_NORM_2_TYPE)
             VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_UNARY_NORM_INF_TYPE)
 
-            VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_UNARY_REDUCE_TYPE)
-
             default: throw statement_not_supported_exception("Cannot convert unary operation to string");
           }
         }
@@ -90,7 +88,7 @@ namespace viennacl
             VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_BINARY_ELEMENT_DIV_TYPE)
             VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_BINARY_INNER_PROD_TYPE)
             VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_BINARY_ELEMENT_POW_TYPE)
-
+            VIENNACL_TRANSLATE_OP_TO_STRING(OPERATION_BINARY_REDUCE_TYPE)
             default: throw statement_not_supported_exception("Cannot convert unary operation to string");
           }
         }

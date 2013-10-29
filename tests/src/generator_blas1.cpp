@@ -100,7 +100,7 @@ template< typename NumericT, typename Epsilon >
 int test_vector ( Epsilon const& epsilon) {
     int retval = EXIT_SUCCESS;
 
-    unsigned int size = 1024;
+    unsigned int size = 1024*1024;
 
     ublas::vector<NumericT> cw(size);
     ublas::vector<NumericT> cx(size);
@@ -259,6 +259,17 @@ int test_vector ( Epsilon const& epsilon) {
         viennacl::backend::finish();
         CHECK_RESULT(s, gs, s = reduce<add>(x));
     }
+
+    {
+        std::cout << "s = reduce<mult>(x)..." << std::endl;
+        s = cx[0];
+        for(unsigned int i=1 ; i<size ; ++i)  s*=cx[i];
+        viennacl::scheduler::statement statement(gs, viennacl::op_assign(), viennacl::linalg::reduce<viennacl::op_mult>(x));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(s, gs, s = reduce<mult>(x));
+    }
+
 
 
 //    {

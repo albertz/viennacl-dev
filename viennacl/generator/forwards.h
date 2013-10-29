@@ -47,7 +47,7 @@ namespace viennacl{
     };
 
     inline bool is_scalar_reduction(scheduler::operation_node_type type){
-        return type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE || type==scheduler::OPERATION_UNARY_REDUCE_TYPE;
+        return type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE || type==scheduler::OPERATION_BINARY_REDUCE_TYPE;
     }
 
     enum expression_type{
