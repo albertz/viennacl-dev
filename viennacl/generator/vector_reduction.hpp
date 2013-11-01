@@ -134,7 +134,7 @@ namespace viennacl{
 
           std::size_t lsize1 = m_;
           std::size_t lsize2 = k_+1;
-          std::string scalartype = "float";
+
           bool is_lhs_transposed = false;
           if(exprs.front()->root_node().lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
             if(exprs.front()->statement().array()[exprs.front()->root_node().lhs.node_index].op.type==scheduler::OPERATION_UNARY_TRANS_TYPE)
@@ -156,7 +156,7 @@ namespace viennacl{
           stream.inc_tab();
 
           for(std::size_t k = 0 ; k < exprs.size() ; ++k)
-            stream << scalartype << " sum" << k << " = 0;" << std::endl;
+            stream << exprs[k]->scalartype() << " sum" << k << " = 0;" << std::endl;
 
           stream << "for(unsigned int c = get_local_id(1) ; c < " << size2 << " ; c += get_local_size(1)){" << std::endl;
           stream.inc_tab();

@@ -85,6 +85,14 @@ namespace viennacl{
           mapped_matrix_product(std::string const & scalartype) : mapped_binary_leaf(scalartype){ }
       };
 
+      /** @brief Mapping of a transposition */
+      class mapped_transposition : public mapped_binary_leaf{
+          friend class map_functor;
+        public:
+          mapped_transposition(std::string const & scalartype) : mapped_binary_leaf(scalartype){ }
+      };
+
+
       /** @brief Base class for mapping a reduction */
       class mapped_reduction : public mapped_binary_leaf{
         public:

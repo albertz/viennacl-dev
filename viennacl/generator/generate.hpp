@@ -98,7 +98,7 @@ namespace viennacl{
               descriptor.type_family = SCALAR_REDUCE_FAMILY;
               descriptor.type = SCALAR_REDUCE_TYPE;
           }
-          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY){
+          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY && root_node.op.type!=OPERATION_UNARY_TRANS_TYPE){
               descriptor.type_family=INVALID_EXPRESSION_FAMILY;
               descriptor.type=INVALID_EXPRESSION_TYPE;
           }
@@ -119,7 +119,7 @@ namespace viennacl{
               else
                   descriptor.type=VECTOR_REDUCE_Nx_TYPE;
           }
-          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY){
+          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY && root_node.op.type!=OPERATION_UNARY_TRANS_TYPE){
               descriptor.type_family=INVALID_EXPRESSION_FAMILY;
               descriptor.type=INVALID_EXPRESSION_TYPE;
           }
@@ -145,7 +145,7 @@ namespace viennacl{
               else if(lhs_trans && rhs_trans)
                 descriptor.type=MATRIX_PRODUCT_TT_TYPE;
           }
-          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY){
+          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY && root_node.op.type!=OPERATION_UNARY_TRANS_TYPE){
               descriptor.type_family=INVALID_EXPRESSION_FAMILY;
               descriptor.type=INVALID_EXPRESSION_TYPE;
           }
@@ -252,7 +252,7 @@ namespace viennacl{
           void* memory[64] = {NULL};
           for(statements_type::const_iterator it = statements_.begin() ; it != statements_.end() ; ++it){
             for(profile_base::statements_type::const_iterator iit = it->second.begin() ; iit != it->second.end() ; ++iit){
-              detail::traverse(iit->first, iit->second, detail::statement_representation_functor(memory, current_arg, program_name));
+              detail::traverse(iit->first, iit->second, detail::statement_representation_functor(memory, current_arg, program_name),true);
             }
           }
           *program_name='\0';

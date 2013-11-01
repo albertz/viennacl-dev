@@ -52,6 +52,12 @@ namespace viennacl{
               return "arg" + utils::to_string(memory.at(handle));
           }
 
+          scheduler::statement_node_numeric_type numeric_type(scheduler::statement const * statement, statement_node const * root_node) const {
+              while(root_node->lhs.numeric_type==scheduler::INVALID_NUMERIC_TYPE)
+                  root_node = &statement->array()[root_node->lhs.node_index];
+              return root_node->lhs.numeric_type;
+          }
+
         public:
           typedef container_ptr_type result_type;
 
@@ -59,8 +65,9 @@ namespace viennacl{
 
           /** @brief Binary leaf */
           template<class T>
-          result_type binary_leaf(scheduler::statement const * statement, statement_node const * root_node, mapping_type const * mapping) const {
-            T * p = new T("float");
+          result_type structurewise_function(scheduler::statement const * statement, statement_node const * root_node, mapping_type const * mapping) const {
+
+            T * p = new T(utils::numeric_type_to_string(numeric_type(statement,root_node)));
 
             p->info_.statement = statement;
             p->info_.root_node = root_node;
@@ -145,11 +152,13 @@ namespace viennacl{
                  mapping_.insert(mapping_type::value_type(key,  utils::call_on_element(root_node->rhs, *this)));
             else if( node_type== PARENT_NODE_TYPE){
                 if(is_scalar_reduction(root_node->op.type))
-                  mapping_.insert(mapping_type::value_type(key, binary_leaf<mapped_scalar_reduction>(statement, root_node, &mapping_)));
+                  mapping_.insert(mapping_type::value_type(key, structurewise_function<mapped_scalar_reduction>(statement, root_node, &mapping_)));
                 else if(root_node->op.type == OPERATION_BINARY_MAT_VEC_PROD_TYPE)
-                  mapping_.insert(mapping_type::value_type(key, binary_leaf<mapped_vector_reduction>(statement, root_node, &mapping_)));
+                  mapping_.insert(mapping_type::value_type(key, structurewise_function<mapped_vector_reduction>(statement, root_node, &mapping_)));
                 else if(root_node->op.type == OPERATION_BINARY_MAT_MAT_PROD_TYPE)
-                  mapping_.insert(mapping_type::value_type(key, binary_leaf<mapped_matrix_product>(statement, root_node, &mapping_)));
+                  mapping_.insert(mapping_type::value_type(key, structurewise_function<mapped_matrix_product>(statement, root_node, &mapping_)));
+                else if(root_node->op.type == OPERATION_UNARY_TRANS_TYPE)
+                  mapping_.insert(mapping_type::value_type(key, structurewise_function<mapped_transposition>(statement, root_node, &mapping_)));
             }
           }
 

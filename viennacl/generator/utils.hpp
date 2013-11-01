@@ -36,6 +36,17 @@ namespace viennacl{
 
     namespace utils{
 
+    static std::string numeric_type_to_string(scheduler::statement_node_numeric_type const & type){
+        switch(type){
+            case scheduler::FLOAT_TYPE :
+                return "float";
+            case scheduler::DOUBLE_TYPE :
+                return  "double";
+            default :
+                throw generator_not_supported_exception("Unsupported Scalartype");
+        }
+    }
+
     template<class Fun>
     static typename Fun::result_type call_on_host_scalar(scheduler::lhs_rhs_element element, Fun const & fun){
         assert(element.type_family == scheduler::SCALAR_TYPE_FAMILY && bool("Must be called on a host scalar"));
