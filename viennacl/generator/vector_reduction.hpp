@@ -194,7 +194,7 @@ namespace viennacl{
             stream << "buf" << k << "[lid0*" << lsize2 << "+ lid1] = sum" << k << ";" << std::endl;
           }
 
-          for(unsigned int stride = k_/2 ; stride>1 ; stride /=2){
+          for(unsigned int stride = k_/2 ; stride>0 ; stride /=2){
             stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
             stream <<  "if(lid1 < " << stride << ")" ;
             stream << "{" << std::endl;
@@ -208,12 +208,11 @@ namespace viennacl{
           }
 
 
-          stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
           stream <<  "if(lid1 == 0)" ;
           stream << "{" << std::endl;
           stream.inc_tab();
           for(std::size_t i = 0 ; i < exprs.size() ; ++i){
-            stream << "buf" << i << "[lid0*" << lsize2 << "] += buf" << i << "[lid0*" << lsize2 << "+ 1];" << std::endl;
+            exprs[i]->access_name("buf"+utils::to_string(i)+"[lid0*"+utils::to_string(lsize2)+"]");
             exprs[i]->access_name("buf"+utils::to_string(i)+"[lid0*"+utils::to_string(lsize2)+"]");
           }
           std::size_t i = 0;
