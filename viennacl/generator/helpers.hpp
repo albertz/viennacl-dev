@@ -95,48 +95,29 @@ namespace viennacl{
       static void traverse(scheduler::statement const & statement, scheduler::statement_node const & root_node, Fun const & fun, bool recurse_structurewise_function /* see forwards.h for default argument */){
         bool recurse = recurse_structurewise_function || root_node.op.type_subfamily!=scheduler::OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY;
 
-        if(root_node.op.type_family==OPERATION_UNARY_TYPE_FAMILY)
-        {
-          //Self:
-          fun(&statement, &root_node, PARENT_NODE_TYPE);
+        fun.call_before_expansion(&root_node);
 
-          if(recurse){
-              //Lhs:
-              fun.call_before_expansion(&root_node);
-              if(root_node.lhs.type_family==COMPOSITE_OPERATION_FAMILY)
-                traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_structurewise_function);
-              fun(&statement, &root_node, LHS_NODE_TYPE);
-              fun.call_after_expansion(&root_node);
-          }
+        //Lhs:
+        if(recurse){
+          if(root_node.lhs.type_family==COMPOSITE_OPERATION_FAMILY)
+            traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_structurewise_function);
+          if(root_node.lhs.type_family != scheduler::INVALID_TYPE_FAMILY)
+            fun(&statement, &root_node, LHS_NODE_TYPE);
         }
-        else if(root_node.op.type_family==OPERATION_BINARY_TYPE_FAMILY)
-        {
 
-          fun.call_before_expansion(&root_node);
+        //Self:
+        fun(&statement, &root_node, PARENT_NODE_TYPE);
 
-          //Lhs:
-          if(recurse){
-            if(root_node.lhs.type_family==COMPOSITE_OPERATION_FAMILY)
-              traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_structurewise_function);
-            if(root_node.lhs.type_family != scheduler::INVALID_TYPE_FAMILY)
-              fun(&statement, &root_node, LHS_NODE_TYPE);
-          }
-
-          //Self:
-          fun(&statement, &root_node, PARENT_NODE_TYPE);
-
-          //Rhs:
-          if(recurse){
-            if(root_node.rhs.type_family==COMPOSITE_OPERATION_FAMILY)
-              traverse(statement, statement.array()[root_node.rhs.node_index], fun, recurse_structurewise_function);
-            if(root_node.rhs.type_family != scheduler::INVALID_TYPE_FAMILY)
-              fun(&statement, &root_node, RHS_NODE_TYPE);
-          }
-
-          fun.call_after_expansion(&root_node);
-
+        //Rhs:
+        if(recurse){
+          if(root_node.rhs.type_family==COMPOSITE_OPERATION_FAMILY)
+            traverse(statement, statement.array()[root_node.rhs.node_index], fun, recurse_structurewise_function);
+          if(root_node.rhs.type_family != scheduler::INVALID_TYPE_FAMILY)
+            fun(&statement, &root_node, RHS_NODE_TYPE);
         }
-      }
+
+        fun.call_after_expansion(&root_node);
+    }
 
       /** @brief base functor class for traversing a statement */
       class traversal_functor{
