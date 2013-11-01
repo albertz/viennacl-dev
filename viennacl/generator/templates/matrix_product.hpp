@@ -28,10 +28,10 @@
 
 #include "viennacl/scheduler/forwards.h"
 
-#include "viennacl/generator/profile_base.hpp"
 #include "viennacl/generator/mapped_objects.hpp"
 #include "viennacl/generator/utils.hpp"
-
+#include "viennacl/generator/fetch.hpp"
+#include "viennacl/generator/expression_generation.hpp"
 #include "viennacl/forwards.h"
 
 #include "viennacl/tools/tools.hpp"
@@ -173,9 +173,9 @@ namespace viennacl{
         static std::string size3() { return "N"; }
 
         void add_kernel_arguments(statements_type  const & /*statements*/, std::string & arguments_string) const{
-          arguments_string += detail::generate_value_kernel_argument("unsigned int", "M");
-          arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
-          arguments_string += detail::generate_value_kernel_argument("unsigned int", "K");
+          arguments_string += generate_value_kernel_argument("unsigned int", "M");
+          arguments_string += generate_value_kernel_argument("unsigned int", "N");
+          arguments_string += generate_value_kernel_argument("unsigned int", "K");
         }
 
       private:

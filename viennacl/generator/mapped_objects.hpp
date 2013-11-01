@@ -125,7 +125,7 @@ namespace viennacl{
           std::string const & name() { return name_; }
           std::string & append_kernel_arguments(std::set<std::string> & already_generated, std::string & str) const{
             if(already_generated.insert(name_).second)
-              str += detail::generate_value_kernel_argument(scalartype_, name_);
+              str += generate_value_kernel_argument(scalartype_, name_);
             return str;
           }
 
@@ -184,7 +184,7 @@ namespace viennacl{
               std::string vector_scalartype = scalartype_;
               if(simd_width_>1)
                 vector_scalartype+=utils::to_string(simd_width_);
-              str += detail::generate_pointer_kernel_argument("__global", vector_scalartype, name_);
+              str += generate_pointer_kernel_argument("__global", vector_scalartype, name_);
               append_optional_arguments(str);
             }
             return str;
@@ -232,11 +232,11 @@ namespace viennacl{
 
           void append_optional_arguments(std::string & str) const{
             if(!start_name_.empty())
-              str += detail::generate_value_kernel_argument("unsigned int", start_name_);
+              str += generate_value_kernel_argument("unsigned int", start_name_);
             if(!stride_name_.empty())
-              str += detail::generate_value_kernel_argument("unsigned int", stride_name_);
+              str += generate_value_kernel_argument("unsigned int", stride_name_);
             if(!shift_name_.empty())
-              str += detail::generate_value_kernel_argument("unsigned int", shift_name_);
+              str += generate_value_kernel_argument("unsigned int", shift_name_);
           }
         public:
           mapped_vector(std::string const & scalartype) : mapped_buffer(scalartype){ }
@@ -253,13 +253,13 @@ namespace viennacl{
           friend class map_functor;
           void append_optional_arguments(std::string & str) const{
             if(!start1_name_.empty())
-              str += detail::generate_value_kernel_argument("unsigned int", start1_name_);
+              str += generate_value_kernel_argument("unsigned int", start1_name_);
             if(!stride1_name_.empty())
-              str += detail::generate_value_kernel_argument("unsigned int", stride1_name_);
+              str += generate_value_kernel_argument("unsigned int", stride1_name_);
             if(!start2_name_.empty())
-              str += detail::generate_value_kernel_argument("unsigned int", start2_name_);
+              str += generate_value_kernel_argument("unsigned int", start2_name_);
             if(!stride2_name_.empty())
-              str += detail::generate_value_kernel_argument("unsigned int", stride2_name_);
+              str += generate_value_kernel_argument("unsigned int", stride2_name_);
           }
         public:
           mapped_matrix(std::string const & scalartype) : mapped_buffer(scalartype){ }
@@ -316,9 +316,9 @@ namespace viennacl{
           }
           std::string & append_kernel_arguments(std::set<std::string> & /*already_generated*/, std::string & str) const{
             if(!value_name_.empty())
-              str += detail::generate_value_kernel_argument(scalartype_, value_name_);
+              str += generate_value_kernel_argument(scalartype_, value_name_);
             if(!index_name_.empty())
-              str += detail::generate_value_kernel_argument("unsigned int", index_name_);
+              str += generate_value_kernel_argument("unsigned int", index_name_);
             return str;
           }
       };
@@ -335,7 +335,7 @@ namespace viennacl{
           }
           std::string & append_kernel_arguments(std::set<std::string> & /*already generated*/, std::string & str) const{
             if(!value_name_.empty())
-              str += detail::generate_value_kernel_argument(scalartype_, value_name_);
+              str += generate_value_kernel_argument(scalartype_, value_name_);
             return str;
           }
       };

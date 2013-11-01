@@ -29,11 +29,11 @@
 #include "viennacl/backend/opencl.hpp"
 
 #include "viennacl/scheduler/forwards.h"
-
-#include "viennacl/generator/helpers.hpp"
+#include "viennacl/generator/fetch.hpp"
+#include "viennacl/generator/expression_generation.hpp"
 #include "viennacl/generator/utils.hpp"
 
-#include "viennacl/generator/profile_base.hpp"
+#include "viennacl/generator/templates/template_base.hpp"
 
 #include "viennacl/tools/tools.hpp"
 
@@ -271,9 +271,9 @@ namespace viennacl{
 
         void add_kernel_arguments(statements_type  const & statements, std::string & arguments_string) const{
           init_temporaries(statements);
-          arguments_string += detail::generate_value_kernel_argument("unsigned int", "N");
+          arguments_string += generate_value_kernel_argument("unsigned int", "N");
           for(temporaries_type::iterator it = temporaries_.begin() ; it != temporaries_.end() ; ++it){
-            arguments_string += detail::generate_pointer_kernel_argument("__global", it->first, "temp" + utils::to_string(std::distance(temporaries_.begin(), it)));
+            arguments_string += generate_pointer_kernel_argument("__global", it->first, "temp" + utils::to_string(std::distance(temporaries_.begin(), it)));
           }
         }
 

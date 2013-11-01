@@ -1,5 +1,5 @@
-#ifndef VIENNACL_GENERATOR_GENERATE_UTILS_HPP
-#define VIENNACL_GENERATOR_GENERATE_UTILS_HPP
+#ifndef VIENNACL_GENERATOR_GENERATE_EXPRESSION_GENERATION_HPP
+#define VIENNACL_GENERATOR_GENERATE_EXPRESSION_GENERATION_HPP
 
 /* =========================================================================
    Copyright (c) 2010-2013, Institute for Microelectronics,
@@ -30,24 +30,14 @@
 #include "viennacl/forwards.h"
 #include "viennacl/scheduler/forwards.h"
 
-#include "viennacl/generator/utils.hpp"
 #include "viennacl/generator/forwards.h"
+#include "viennacl/generator/traverse.hpp"
 
 namespace viennacl{
 
   namespace generator{
 
     namespace detail{
-
-    /** @brief generate the string for a pointer kernel argument */
-      static std::string generate_value_kernel_argument(std::string const & scalartype, std::string const & name){
-        return scalartype + ' ' + name + ",";
-      }
-
-      /** @brief generate the string for a pointer kernel argument */
-      static std::string generate_pointer_kernel_argument(std::string const & address_space, std::string const & scalartype, std::string const & name){
-        return address_space +  " " + scalartype + "* " + name + ",";
-      }
 
       /** @brief generate a string from an operation_node_type */
       static const char * generate(operation_node_type type){
@@ -88,111 +78,6 @@ namespace viennacl{
 
           default : throw generator_not_supported_exception("Unsupported operator");
         }
-      }
-
-      /** @brief Recursively execute a functor on a statement */
-      template<class Fun>
-      static void traverse(scheduler::statement const & statement, scheduler::statement_node const & root_node, Fun const & fun, bool recurse_structurewise_function /* see forwards.h for default argument */){
-        bool recurse = recurse_structurewise_function || root_node.op.type_subfamily!=scheduler::OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY;
-
-        fun.call_before_expansion(&root_node);
-
-        //Lhs:
-        if(recurse){
-          if(root_node.lhs.type_family==COMPOSITE_OPERATION_FAMILY)
-            traverse(statement, statement.array()[root_node.lhs.node_index], fun, recurse_structurewise_function);
-          if(root_node.lhs.type_family != scheduler::INVALID_TYPE_FAMILY)
-            fun(&statement, &root_node, LHS_NODE_TYPE);
-        }
-
-        //Self:
-        fun(&statement, &root_node, PARENT_NODE_TYPE);
-
-        //Rhs:
-        if(recurse){
-          if(root_node.rhs.type_family==COMPOSITE_OPERATION_FAMILY)
-            traverse(statement, statement.array()[root_node.rhs.node_index], fun, recurse_structurewise_function);
-          if(root_node.rhs.type_family != scheduler::INVALID_TYPE_FAMILY)
-            fun(&statement, &root_node, RHS_NODE_TYPE);
-        }
-
-        fun.call_after_expansion(&root_node);
-
-
-    }
-
-      /** @brief base functor class for traversing a statement */
-      class traversal_functor{
-        public:
-          void call_before_expansion(scheduler::statement_node const *) const { }
-          void call_after_expansion(scheduler::statement_node const *) const { }
-      };
-
-      /** @brief functor for generating the prototype of a statement */
-      class prototype_generation_traversal : public traversal_functor{
-        private:
-          std::string & str_;
-          std::set<std::string> & already_generated_;
-          mapping_type const & mapping_;
-        public:
-          prototype_generation_traversal(std::set<std::string> & already_generated, std::string & str, mapping_type const & mapping) : already_generated_(already_generated), str_(str),  mapping_(mapping){ }
-
-          void operator()(scheduler::statement const *, scheduler::statement_node const * root_node, detail::node_type node_type) const {
-              if( (node_type==detail::LHS_NODE_TYPE && root_node->lhs.type_family!=scheduler::COMPOSITE_OPERATION_FAMILY)
-                ||(node_type==detail::RHS_NODE_TYPE && root_node->rhs.type_family!=scheduler::COMPOSITE_OPERATION_FAMILY) )
-                  append_kernel_arguments(already_generated_, str_, *mapping_.at(std::make_pair(root_node,node_type)));
-          }
-      };
-
-      /** @brief functor for fetching the elements of a statement */
-      class fetch_traversal : public traversal_functor{
-        private:
-          std::set<std::string> & fetched_;
-          std::pair<std::string, std::string> index_string_;
-          utils::kernel_generation_stream & stream_;
-          mapping_type const & mapping_;
-        public:
-          fetch_traversal(std::set<std::string> & fetched, std::pair<std::string, std::string> const & index, utils::kernel_generation_stream & stream, mapping_type const & mapping) : fetched_(fetched), index_string_(index), stream_(stream), mapping_(mapping){ }
-
-          void operator()(scheduler::statement const *, scheduler::statement_node const * root_node, detail::node_type node_type) const {
-            if( (node_type==detail::LHS_NODE_TYPE && root_node->lhs.type_family!=scheduler::COMPOSITE_OPERATION_FAMILY)
-              ||(node_type==detail::RHS_NODE_TYPE && root_node->rhs.type_family!=scheduler::COMPOSITE_OPERATION_FAMILY) )
-              fetch(index_string_, fetched_, stream_, *mapping_.at(std::make_pair(root_node, node_type)));
-          }
-      };
-
-      /** @brief functor for fetching the LHS of a statement's node
-      *
-      *   Forwards to fetch_traversal functor if the LHS is not a leaf
-      */
-      static void fetch_all_lhs(std::set<std::string> & fetched
-                                , scheduler::statement const & statement
-                                , scheduler::statement_node const & root_node
-                                , std::pair<std::string, std::string> const & index
-                                , utils::kernel_generation_stream & stream
-                                , detail::mapping_type const & mapping){
-        if(root_node.lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
-          detail::traverse(statement, statement.array()[root_node.lhs.node_index], detail::fetch_traversal(fetched, index, stream, mapping));
-        else
-          detail::fetch(index, fetched, stream, *mapping.at(std::make_pair(&root_node,detail::LHS_NODE_TYPE)));
-
-      }
-
-      /** @brief functor for fetching the RHS of a statement's node
-      *
-      *   Forwards to fetch_traversal functor if the RHS is not a leaf
-      */
-      static void fetch_all_rhs(std::set<std::string> & fetched
-                                , scheduler::statement const & statement
-                                , scheduler::statement_node const & root_node
-                                , std::pair<std::string, std::string> const & index
-                                , utils::kernel_generation_stream & stream
-                                , detail::mapping_type const & mapping){
-        if(root_node.rhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
-          detail::traverse(statement, statement.array()[root_node.rhs.node_index], detail::fetch_traversal(fetched, index, stream, mapping));
-        else
-          detail::fetch(index, fetched, stream, *mapping.at(std::make_pair(&root_node,detail::RHS_NODE_TYPE)));
-
       }
 
 

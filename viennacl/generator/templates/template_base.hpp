@@ -34,8 +34,9 @@
 
 #include "viennacl/scheduler/forwards.h"
 
-#include "viennacl/generator/helpers.hpp"
+#include "viennacl/generator/traverse.hpp"
 #include "viennacl/generator/map_functor.hpp"
+#include "viennacl/generator/prototype_generation.hpp"
 
 namespace viennacl{
 

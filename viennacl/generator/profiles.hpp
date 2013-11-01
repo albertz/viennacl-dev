@@ -32,11 +32,11 @@
 
 #include "viennacl/tools/shared_ptr.hpp"
 
-#include "viennacl/generator/profile_base.hpp"
-#include "viennacl/generator/saxpy.hpp"
-#include "viennacl/generator/scalar_reduction.hpp"
-#include "viennacl/generator/vector_reduction.hpp"
-#include "viennacl/generator/matrix_product.hpp"
+#include "viennacl/generator/templates/template_base.hpp"
+#include "viennacl/generator/templates/saxpy.hpp"
+#include "viennacl/generator/templates/scalar_reduction.hpp"
+#include "viennacl/generator/templates/vector_reduction.hpp"
+#include "viennacl/generator/templates/matrix_product.hpp"
 
 namespace viennacl{
 
