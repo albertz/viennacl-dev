@@ -170,16 +170,16 @@ int test_vector ( Epsilon const& epsilon) {
         CHECK_RESULT(cw, w, w = alpha*x + beta*y);
     }
 
-    {
-        std::cout << "w = x == x" << std::endl;
-        for(unsigned int i=0 ; i < size ; ++i){
-            cw(i) = (cx(i) == cx(i));
-        }
-        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_eq(x,x));
-        generator::generate_enqueue_statement(statement, statement.array()[0]);
-        viennacl::backend::finish();
-        CHECK_RESULT(cw, w, w = (x == x))
-    }
+//    {
+//        std::cout << "w = x == x" << std::endl;
+//        for(unsigned int i=0 ; i < size ; ++i){
+//            cw(i) = (cx(i) == cx(i));
+//        }
+//        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_eq(x,x));
+//        generator::generate_enqueue_statement(statement, statement.array()[0]);
+//        viennacl::backend::finish();
+//        CHECK_RESULT(cw, w, w = (x == x))
+//    }
 
 //    {
 //        std::cout << "w = x != x" << std::endl;
