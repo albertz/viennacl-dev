@@ -67,13 +67,13 @@ namespace viennacl{
           case OPERATION_BINARY_DIV_TYPE : return "/";
           case OPERATION_BINARY_ACCESS_TYPE : return "[]";
 
-          //Binary elementwise
-          case OPERATION_BINARY_ELEMENT_EQ_TYPE : return "==";
-          case OPERATION_BINARY_ELEMENT_NEQ_TYPE : return "!=";
-          case OPERATION_BINARY_ELEMENT_GREATER_TYPE : return ">";
-          case OPERATION_BINARY_ELEMENT_GEQ_TYPE : return ">=";
-          case OPERATION_BINARY_ELEMENT_LESS_TYPE : return "<";
-          case OPERATION_BINARY_ELEMENT_LEQ_TYPE : return "<=";
+          //Relational
+          case OPERATION_BINARY_ELEMENT_EQ_TYPE : return "isequal";
+          case OPERATION_BINARY_ELEMENT_NEQ_TYPE : return "isnotequal";
+          case OPERATION_BINARY_ELEMENT_GREATER_TYPE : return "isgreater";
+          case OPERATION_BINARY_ELEMENT_GEQ_TYPE : return "isgreaterequal";
+          case OPERATION_BINARY_ELEMENT_LESS_TYPE : return "isless";
+          case OPERATION_BINARY_ELEMENT_LEQ_TYPE : return "islessequal";
 
           //Unary
           case OPERATION_UNARY_TRANS_TYPE : return "trans";
@@ -117,6 +117,8 @@ namespace viennacl{
         }
 
         fun.call_after_expansion(&root_node);
+
+
     }
 
       /** @brief base functor class for traversing a statement */

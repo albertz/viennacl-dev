@@ -101,7 +101,6 @@ int test_vector ( Epsilon const& epsilon) {
     int retval = EXIT_SUCCESS;
 
     unsigned int size = 1024*1024;
-    ublas::vector<int> cresint(size);
     ublas::vector<NumericT> cw(size);
     ublas::vector<NumericT> cx(size);
     ublas::vector<NumericT> cy(size);
@@ -116,7 +115,6 @@ int test_vector ( Epsilon const& epsilon) {
     }
 
     std::cout << "Running tests for vector of size " << cw.size() << std::endl;
-    viennacl::vector<int> resint (size);
     viennacl::vector<NumericT> w (size);
     viennacl::vector<NumericT> x (size);
     viennacl::vector<NumericT> y (size);
@@ -172,16 +170,16 @@ int test_vector ( Epsilon const& epsilon) {
         CHECK_RESULT(cw, w, w = alpha*x + beta*y);
     }
 
-//    {
-//        std::cout << "w = x == x" << std::endl;
-//        for(unsigned int i=0 ; i < size ; ++i){
-//            cresint(i) = (cx(i) == cx(i));
-//        }
-//        viennacl::scheduler::statement statement(resint, viennacl::op_assign(), viennacl::linalg::element_eq(x,x));
-//        generator::generate_enqueue_statement(statement, statement.array()[0]);
-//        viennacl::backend::finish();
-//        CHECK_RESULT(cw, w, i = (x == x))
-//    }
+    {
+        std::cout << "w = x == x" << std::endl;
+        for(unsigned int i=0 ; i < size ; ++i){
+            cw(i) = (cx(i) == cx(i));
+        }
+        viennacl::scheduler::statement statement(w, viennacl::op_assign(), viennacl::linalg::element_eq(x,x));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cw, w, w = (x == x))
+    }
 
 //    {
 //        std::cout << "w = x != x" << std::endl;
