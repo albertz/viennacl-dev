@@ -30,8 +30,8 @@
 
 #include "viennacl/generator/mapped_objects.hpp"
 #include "viennacl/generator/utils.hpp"
-#include "viennacl/generator/fetch.hpp"
-#include "viennacl/generator/expression_generation.hpp"
+#include "viennacl/generator/tree_parsing/fetch.hpp"
+#include "viennacl/generator/tree_parsing/elementwise_expression.hpp"
 #include "viennacl/forwards.h"
 
 #include "viennacl/tools/tools.hpp"

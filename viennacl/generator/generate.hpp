@@ -31,9 +31,9 @@
 #include "viennacl/generator/forwards.h"
 
 #include "viennacl/generator/profiles.hpp"
-#include "viennacl/generator/statement_representation_functor.hpp"
-#include "viennacl/generator/set_arguments_functor.hpp"
-#include "viennacl/generator/map_functor.hpp"
+#include "viennacl/generator/tree_parsing/statement_representation.hpp"
+#include "viennacl/generator/tree_parsing/set_arguments.hpp"
+#include "viennacl/generator/tree_parsing/map.hpp"
 
 #include "viennacl/tools/tools.hpp"
 

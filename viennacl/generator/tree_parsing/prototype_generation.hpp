@@ -32,7 +32,7 @@
 #include "viennacl/scheduler/forwards.h"
 #include "viennacl/generator/forwards.h"
 
-#include "viennacl/generator/traverse.hpp"
+#include "viennacl/generator/tree_parsing/traverse.hpp"
 
 
 

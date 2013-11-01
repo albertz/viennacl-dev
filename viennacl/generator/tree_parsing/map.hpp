@@ -31,7 +31,7 @@
 
 #include "viennacl/tools/shared_ptr.hpp"
 
-#include "viennacl/generator/traverse.hpp"
+#include "viennacl/generator/tree_parsing/traverse.hpp"
 #include "viennacl/generator/utils.hpp"
 #include "viennacl/generator/mapped_objects.hpp"
 
