@@ -46,8 +46,30 @@ namespace viennacl{
       INVALID_EXPRESSION_FAMILY
     };
 
-    inline bool is_scalar_reduction(scheduler::operation_node_type type){
-        return type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE || type==scheduler::OPERATION_BINARY_REDUCE_TYPE;
+    inline bool is_scalar_reduction(scheduler::statement const & statement, scheduler::statement_node const & node){
+      if(node.op.type==scheduler::OPERATION_BINARY_INNER_PROD_TYPE)
+        return true;
+      if(node.op.type==scheduler::OPERATION_BINARY_REDUCE_TYPE){
+        scheduler::statement_node const * current = &node;
+        while(current->lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
+          current = &statement.array()[current->lhs.node_index];
+        if(current->lhs.type_family==scheduler::VECTOR_TYPE_FAMILY)
+          return true;
+      }
+      return false;
+    }
+
+    inline bool is_vector_reduction(scheduler::statement const & statement, scheduler::statement_node const & node){
+      if(node.op.type==scheduler::OPERATION_BINARY_MAT_VEC_PROD_TYPE)
+        return true;
+      if(node.op.type==scheduler::OPERATION_BINARY_REDUCE_TYPE){
+        scheduler::statement_node const * current = &node;
+        while(current->lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
+          current = &statement.array()[current->lhs.node_index];
+        if(current->lhs.type_family==scheduler::MATRIX_TYPE_FAMILY)
+          return true;
+      }
+      return false;
     }
 
     enum expression_type{

@@ -94,12 +94,19 @@ namespace viennacl{
         /** @brief Fills the expression descriptor for an operation of the type scalar = RHS */
         static void fill_descriptor_impl(scheduler::statement const & statement, scheduler::statement_node const & root_node, expression_descriptor & descriptor){
           scheduler::statement::container_type const & expr = statement.array();
-          if(descriptor.type_family == SCALAR_SAXPY_FAMILY && is_scalar_reduction(root_node.op.type)){
+          if(descriptor.type_family == SCALAR_SAXPY_FAMILY && is_scalar_reduction(statement,root_node)){
               descriptor.type_family = SCALAR_REDUCE_FAMILY;
               descriptor.type = SCALAR_REDUCE_TYPE;
           }
-          else if(descriptor.type_family == VECTOR_SAXPY_FAMILY && root_node.op.type == OPERATION_BINARY_MAT_VEC_PROD_TYPE){
+          else if(descriptor.type_family == VECTOR_SAXPY_FAMILY && is_vector_reduction(statement,root_node)){
               descriptor.type_family=VECTOR_REDUCE_FAMILY;
+
+//              if(root_node.op.type==scheduler::OPERATION_BINARY_REDUCE_TYPE){
+//                if(root_node.lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY){
+//                  if(statement.array()[root_node.lhs.node_index].op.type==scheduler:)
+//                }
+//              }
+
               if(is_lhs_flow_transposed(statement,root_node))
                   descriptor.type=VECTOR_REDUCE_Tx_TYPE;
               else
@@ -118,7 +125,7 @@ namespace viennacl{
               else if(lhs_trans && rhs_trans)
                 descriptor.type=MATRIX_PRODUCT_TT_TYPE;
           }
-          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY && root_node.op.type!=OPERATION_UNARY_TRANS_TYPE){
+          else if(root_node.op.type_subfamily==OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY){
               descriptor.type_family=INVALID_EXPRESSION_FAMILY;
               descriptor.type=INVALID_EXPRESSION_TYPE;
           }
@@ -248,7 +255,7 @@ namespace viennacl{
           std::size_t device_offset =0;
           for(std::vector<viennacl::ocl::device>::const_iterator it = ctx_.devices().begin() ; it != ctx_.devices().end() ; ++it)
             for(statements_type::const_iterator iit = statements_.begin() ; iit != statements_.end() ; ++iit)
-              get_profile(*it,iit->first)(stream,device_offset++,iit->second);
+              get_profile(*it,iit->first)(stream,device_offset++,iit->first,iit->second);
 
           return stream.str();
         }
@@ -263,7 +270,7 @@ namespace viennacl{
           std::size_t device_offset =0;
           for(std::vector<viennacl::ocl::device>::const_iterator it = ctx_.devices().begin() ; it != ctx_.devices().end() ; ++it)
             for(statements_type::const_iterator iit = statements_.begin() ; iit != statements_.end() ; ++iit)
-              get_profile(*it,iit->first)(stream,device_offset++,iit->second);
+              get_profile(*it,iit->first)(stream,device_offset++,iit->first,iit->second);
           std::string res = stream.str();
 
           viennacl::tools::find_and_replace(res,"__attribute__","//__attribute__");

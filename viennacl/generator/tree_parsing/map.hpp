@@ -27,6 +27,7 @@
 
 #include "viennacl/forwards.h"
 #include "viennacl/scheduler/forwards.h"
+#include "viennacl/scheduler/io.hpp"
 #include "viennacl/generator/forwards.h"
 
 #include "viennacl/tools/shared_ptr.hpp"
@@ -151,9 +152,9 @@ namespace viennacl{
             else if(node_type == RHS_NODE_TYPE && root_node->rhs.type_family != scheduler::COMPOSITE_OPERATION_FAMILY)
                  mapping_.insert(mapping_type::value_type(key,  utils::call_on_element(root_node->rhs, *this)));
             else if( node_type== PARENT_NODE_TYPE){
-                if(is_scalar_reduction(root_node->op.type))
+                if(is_scalar_reduction(*statement,*root_node))
                   mapping_.insert(mapping_type::value_type(key, structurewise_function<mapped_scalar_reduction>(statement, root_node, &mapping_)));
-                else if(root_node->op.type == OPERATION_BINARY_MAT_VEC_PROD_TYPE)
+                else if(is_vector_reduction(*statement,*root_node))
                   mapping_.insert(mapping_type::value_type(key, structurewise_function<mapped_vector_reduction>(statement, root_node, &mapping_)));
                 else if(root_node->op.type == OPERATION_BINARY_MAT_MAT_PROD_TYPE)
                   mapping_.insert(mapping_type::value_type(key, structurewise_function<mapped_matrix_product>(statement, root_node, &mapping_)));

@@ -53,6 +53,18 @@ namespace viennacl
                                             viennacl::op_reduce<ROP> >(vector,vector);
     }
 
+    //Row-wise reduction
+    template<typename ROP, typename NumericT, typename F>
+    viennacl::vector_expression< const matrix_expression< const matrix_base<NumericT, F>, const matrix_base<NumericT, F>, op_row_wise>,
+                                 const matrix_expression< const matrix_base<NumericT, F>, const matrix_base<NumericT, F>, op_row_wise>,
+                                 viennacl::op_reduce<ROP> >
+    reduce(matrix_expression< const matrix_base<NumericT, F>, const matrix_base<NumericT, F>, viennacl::op_row_wise> const & mat)
+    {
+      return viennacl::vector_expression< const matrix_expression< const matrix_base<NumericT, F>, const matrix_base<NumericT, F>, op_row_wise>,
+          const matrix_expression< const matrix_base<NumericT, F>, const matrix_base<NumericT, F>, op_row_wise>,
+          viennacl::op_reduce<ROP> >(mat,mat);
+    }
+
   } // end namespace linalg
 } // end namespace viennacl
 #endif

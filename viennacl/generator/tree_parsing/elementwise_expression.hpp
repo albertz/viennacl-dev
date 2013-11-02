@@ -66,8 +66,11 @@ namespace viennacl{
           case OPERATION_BINARY_ELEMENT_LEQ_TYPE : return "islessequal";
 
           //Unary
-          case OPERATION_UNARY_TRANS_TYPE : return "trans";
           case OPERATION_BINARY_REDUCE_TYPE : return "reduce";
+
+          case OPERATION_UNARY_TRANS_TYPE : return "trans";
+          case OPERATION_UNARY_ROW_WISE_TYPE : return "rowwise";
+          case OPERATION_UNARY_COLUMN_WISE_TYPE : return "columnwise";
 
           //Binary
           //Leaves

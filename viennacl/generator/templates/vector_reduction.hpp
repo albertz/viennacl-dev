@@ -37,6 +37,8 @@
 
 #include "viennacl/tools/tools.hpp"
 
+#include "viennacl/scheduler/io.hpp"
+
 namespace viennacl{
 
   namespace generator{
@@ -81,7 +83,7 @@ namespace viennacl{
           for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
             scheduler::statement::container_type exprs = it->first.array();
             for(scheduler::statement::container_type::iterator iit = exprs.begin() ; iit != exprs.end() ; ++iit){
-              if(iit->op.type==scheduler::OPERATION_BINARY_MAT_VEC_PROD_TYPE){
+              if(is_vector_reduction(it->first,*iit)){
                 scheduler::statement_node const * current_node = &(*iit);
                 //The LHS of the prod is a matrix
                 if(current_node->lhs.type_family==scheduler::MATRIX_TYPE_FAMILY)
@@ -121,8 +123,61 @@ namespace viennacl{
         }
 
       private:
-        void core(std::size_t /*kernel_id*/, utils::kernel_generation_stream& stream, statements_type const & statements, std::vector<detail::mapping_type> const & mapping) const {
+        static void reduction_computation(utils::kernel_generation_stream & os, std::string const & acc, std::string const & val, scheduler::op_element const & op){
+            os << acc << "=";
+            if(op.type_subfamily==scheduler::OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY)
+                os << detail::generate(op.type) << "(" << acc << "," << val << ")";
+            else
+                os << "(" << acc << ")" << detail::generate(op.type)  << "(" << val << ")";
+            os << ";" << std::endl;
 
+        }
+
+        void accumulate_step(utils::kernel_generation_stream& stream
+                        ,std::vector<detail::mapped_vector_reduction*> exprs
+                        ,expression_descriptor descriptor
+                        ,std::vector<std::string> const & accs
+                        ,std::vector<scheduler::op_element> const & rops
+                        ,bool first_step
+                        ,std::string const & r
+                        ,std::string const & c) const
+        {
+          std::set<std::string>  fetched;
+          std::size_t N = exprs.size();
+
+          for(std::size_t k = 0 ; k < N ; ++k)
+          {
+            viennacl::scheduler::statement const & statement = exprs[k]->statement();
+            viennacl::scheduler::statement_node const & root_node = exprs[k]->root_node();
+            if(descriptor.type==VECTOR_REDUCE_Tx_TYPE)
+              detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair(c, r),stream,exprs[k]->mapping());
+            else
+              detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair(r, c),stream,exprs[k]->mapping());
+
+            if(root_node.op.type==scheduler::OPERATION_BINARY_MAT_VEC_PROD_TYPE)
+              detail::fetch_all_rhs(fetched,statement,root_node, std::make_pair(c, "0"),stream,exprs[k]->mapping());
+          }
+
+
+          //Update sums;
+          for(std::size_t k = 0 ; k < N ; ++k)
+          {
+            viennacl::scheduler::statement const & statement = exprs[k]->statement();
+            viennacl::scheduler::statement_node const & root_node = exprs[k]->root_node();
+            std::string str;
+            detail::generate_all_lhs(statement,root_node,std::make_pair("",""),-1,str,exprs[k]->mapping());
+            if(root_node.op.type==scheduler::OPERATION_BINARY_MAT_VEC_PROD_TYPE){
+              str += "*";
+              detail::generate_all_rhs(statement,root_node,std::make_pair("",""),-1,str,exprs[k]->mapping());
+            }
+            if(first_step)
+              stream << accs[k] << " = " << str << ";" << std::endl;
+            else
+              reduction_computation(stream,accs[k],str,rops[k]);
+          }
+        }
+
+        void core(std::size_t /*kernel_id*/, utils::kernel_generation_stream& stream, expression_descriptor descriptor, statements_type const & statements, std::vector<detail::mapping_type> const & mapping) const {
           std::vector<detail::mapped_vector_reduction*> exprs;
           for(std::vector<detail::mapping_type>::const_iterator it = mapping.begin() ; it != mapping.end() ; ++it){
             for(detail::mapping_type::const_iterator iit = it->begin() ; iit != it->end() ; ++iit){
@@ -133,17 +188,35 @@ namespace viennacl{
             }
           }
 
+          std::size_t N = exprs.size();
+
+          std::vector<scheduler::op_element> rops(N);
+          std::vector<std::string> accs(N);
+          std::vector<std::string> local_buffers_names(N);
+          for(std::size_t k = 0 ; k < N ; ++k){
+            scheduler::op_element root_op = exprs[k]->root_node().op;
+            if(root_op.type==scheduler::OPERATION_BINARY_MAT_VEC_PROD_TYPE){
+              rops[k].type_family = scheduler::OPERATION_BINARY_TYPE_FAMILY;
+              rops[k].type_subfamily = scheduler::OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY;
+              rops[k].type        = scheduler::OPERATION_BINARY_ADD_TYPE;
+            }
+            else{
+              rops[k] = exprs[k]->statement().array()[exprs[k]->root_node().rhs.node_index].op;
+            }
+            accs[k] = "sum"+utils::to_string(k);
+            local_buffers_names[k] = "buf"+utils::to_string(k);
+          }
+
+
+
           std::size_t lsize1 = m_;
           std::size_t lsize2 = k_+1;
 
-          bool is_lhs_transposed = false;
-          if(exprs.front()->root_node().lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
-            if(exprs.front()->statement().array()[exprs.front()->root_node().lhs.node_index].op.type==scheduler::OPERATION_UNARY_TRANS_TYPE)
-              is_lhs_transposed = true;
-
           std::string size1 = "M", size2 = "N";
-          if(is_lhs_transposed)
+
+          if(descriptor.type==VECTOR_REDUCE_Tx_TYPE)
             std::swap(size1, size2);
+
 
           for(std::vector<detail::mapped_vector_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
             stream << "__local " <<  (*it)->scalartype() << " buf" << std::distance(exprs.begin(), it) << '[' << lsize1*lsize2 << "];" << std::endl;
@@ -159,35 +232,16 @@ namespace viennacl{
           for(std::size_t k = 0 ; k < exprs.size() ; ++k)
             stream << exprs[k]->scalartype() << " sum" << k << " = 0;" << std::endl;
 
-          stream << "for(unsigned int c = get_local_id(1) ; c < " << size2 << " ; c += get_local_size(1)){" << std::endl;
+          stream << "unsigned int c = get_local_id(1);" << std::endl;
+          stream << "if(c < " << size2 << "){" << std::endl;
           stream.inc_tab();
-
-          std::set<std::string>  fetched;
-
-          for(std::vector<detail::mapped_vector_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
-            viennacl::scheduler::statement const & statement = (*it)->statement();
-            viennacl::scheduler::statement_node const & root_node = (*it)->root_node();
-            if(is_lhs_transposed)
-              detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair("c", "r"),stream,(*it)->mapping());
-            else
-              detail::fetch_all_lhs(fetched,statement,root_node, std::make_pair("r", "c"),stream,(*it)->mapping());
-
-            detail::fetch_all_rhs(fetched,statement,root_node, std::make_pair("c", "0"),stream,(*it)->mapping());
-          }
-
-
-          //Update sums;
-          for(std::vector<detail::mapped_vector_reduction*>::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
-            viennacl::scheduler::statement const & statement = (*it)->statement();
-            viennacl::scheduler::statement_node const & root_node = (*it)->root_node();
-            std::string str;
-            detail::generate_all_lhs(statement,root_node,std::make_pair("i","0"),-1,str,(*it)->mapping());
-            str += "*";
-            detail::generate_all_rhs(statement,root_node,std::make_pair("i","0"),-1,str,(*it)->mapping());
-            stream << " sum" << std::distance(exprs.begin(),it) << " += "  << str << ";" << std::endl;
-          }
-
-
+          accumulate_step(stream,exprs,descriptor,accs,rops,true,"r","c");
+          stream.dec_tab();
+          stream << "}" << std::endl;
+          stream << "c += get_local_size(1);" << std::endl;
+          stream << "for( ; c < " << size2 << " ; c += get_local_size(1)){" << std::endl;
+          stream.inc_tab();
+          accumulate_step(stream,exprs,descriptor,accs,rops,false,"r","c");
           stream.dec_tab();
           stream << "}" << std::endl;
 
@@ -201,8 +255,11 @@ namespace viennacl{
             stream << "{" << std::endl;
             stream.inc_tab();
 
-            for(std::size_t i = 0 ; i < exprs.size() ; ++i)
-              stream << "buf" << i << "[lid0*" << lsize2 << "+ lid1] += buf" << i << "[lid0*" << lsize2 << "+ lid1 + " << stride << "];" << std::endl;
+            for(std::size_t k = 0 ; k < N ; ++k)
+              reduction_computation(stream
+                                    ,local_buffers_names[k] + "[lid0*" + utils::to_string(lsize2) + "+ lid1]"
+                                    ,local_buffers_names[k] + "[lid0*" + utils::to_string(lsize2) + "+ lid1 + " + utils::to_string(stride) + "]"
+                                    ,rops[k]);
 
             stream.dec_tab();
             stream << "}" << std::endl;
@@ -212,10 +269,9 @@ namespace viennacl{
           stream <<  "if(lid1 == 0)" ;
           stream << "{" << std::endl;
           stream.inc_tab();
-          for(std::size_t i = 0 ; i < exprs.size() ; ++i){
-            exprs[i]->access_name("buf"+utils::to_string(i)+"[lid0*"+utils::to_string(lsize2)+"]");
-            exprs[i]->access_name("buf"+utils::to_string(i)+"[lid0*"+utils::to_string(lsize2)+"]");
-          }
+          for(std::size_t k = 0 ; k < N ; ++k)
+            exprs[k]->access_name(local_buffers_names[k] + "[lid0*"+utils::to_string(lsize2)+"]");
+
           std::size_t i = 0;
           for(statements_type::const_iterator it = statements.begin() ; it != statements.end() ; ++it){
             std::string str;

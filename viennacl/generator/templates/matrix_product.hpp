@@ -272,7 +272,7 @@ namespace viennacl{
 
         }
 
-        void core(std::size_t /*kernel_id*/, utils::kernel_generation_stream& stream, statements_type const & statements, std::vector<detail::mapping_type> const & mapping) const {
+        void core(std::size_t /*kernel_id*/, utils::kernel_generation_stream& stream, expression_descriptor descriptor, statements_type const & statements, std::vector<detail::mapping_type> const & mapping) const {
 
           //////////////////
           /// INIT

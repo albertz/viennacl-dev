@@ -86,7 +86,7 @@ namespace viennacl{
          *  @param statements the statements for which the code should be generated
          *  @param mapping    the mapping of the statement_nodes to the mapped_objects
          */
-        virtual void core(std::size_t kernel_id, utils::kernel_generation_stream& stream, statements_type const & statements, std::vector<detail::mapping_type> const & mapping) const = 0;
+        virtual void core(std::size_t kernel_id, utils::kernel_generation_stream& stream, expression_descriptor descriptor, statements_type const & statements, std::vector<detail::mapping_type> const & mapping) const = 0;
 
       public:
         /** @brief The constructor */
@@ -149,7 +149,7 @@ namespace viennacl{
          *  @param stream Stream onto which the code should be generated
          *  @param device_offset the index of the device in the context (used for the kernel name)
          *  @param statements the statements associated with this profile */
-        virtual void operator()(utils::kernel_generation_stream & stream, std::size_t device_offset, statements_type const & statements) const {
+        virtual void operator()(utils::kernel_generation_stream & stream, std::size_t device_offset, expression_descriptor descriptor, statements_type const & statements) const {
           std::vector<detail::mapping_type> mapping(statements.size());
 
           ///Get Prototype, initialize mapping
@@ -177,7 +177,7 @@ namespace viennacl{
             //core:
             stream << "{" << std::endl;
             stream.inc_tab();
-            core(n, stream, statements, mapping);
+            core(n, stream, descriptor, statements, mapping);
             stream.dec_tab();
             stream << "}" << std::endl;
           }

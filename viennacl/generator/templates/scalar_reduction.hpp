@@ -177,7 +177,7 @@ namespace viennacl{
                 default : throw generator_not_supported_exception("Unsupported scalartype");
               }
               for(scheduler::statement::container_type::const_iterator iit = array.begin() ; iit != array.end() ; ++iit){
-                if(is_scalar_reduction(iit->op.type)){
+                if(is_scalar_reduction(it->first,*iit)){
                   temporaries_.push_back(std::make_pair(scalartype_name, viennacl::ocl::current_context().create_memory(CL_MEM_READ_WRITE, num_groups_*size_of_scalartype)));
                 }
               }
@@ -188,7 +188,7 @@ namespace viennacl{
         void set_size_argument(viennacl::scheduler::statement const & s, viennacl::scheduler::statement_node const & /*root_node*/, unsigned int & n_arg, viennacl::ocl::kernel & k) const {
           scheduler::statement::container_type exprs = s.array();
           for(scheduler::statement::container_type::iterator it = exprs.begin() ; it != exprs.end() ; ++it){
-            if(is_scalar_reduction(it->op.type)){
+            if(is_scalar_reduction(s,*it)){
               //set size argument
               scheduler::statement_node const * current_node = &(*it);
 
@@ -415,7 +415,7 @@ namespace viennacl{
           stream << "}" << std::endl;
         }
 
-        void core(std::size_t kernel_id, utils::kernel_generation_stream& stream, statements_type const & statements, std::vector<detail::mapping_type> const & mapping) const {
+        void core(std::size_t kernel_id, utils::kernel_generation_stream& stream, expression_descriptor descriptor, statements_type const & statements, std::vector<detail::mapping_type> const & mapping) const {
           std::vector<detail::mapped_scalar_reduction*> exprs;
           for(std::vector<detail::mapping_type>::const_iterator it = mapping.begin() ; it != mapping.end() ; ++it)
             for(detail::mapping_type::const_iterator iit = it->begin() ; iit != it->end() ; ++iit)

@@ -61,7 +61,8 @@ namespace viennacl
 
       OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY,
       OPERATION_ELEMENTWISE_OPERATOR_TYPE_SUBFAMILY,
-      OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY
+      OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY,
+      OPERATION_INTERPRETATION_MODIFIER_TYPE_SUBFAMILY
     };
 
     /** @brief Enumeration for identifying the possible operations */
@@ -93,6 +94,11 @@ namespace viennacl
       OPERATION_UNARY_NORM_1_TYPE,
       OPERATION_UNARY_NORM_2_TYPE,
       OPERATION_UNARY_NORM_INF_TYPE,
+
+      OPERATION_UNARY_ROW_WISE_TYPE,
+      OPERATION_UNARY_COLUMN_WISE_TYPE,
+
+
 
       // binary expression
       OPERATION_BINARY_ACCESS_TYPE,
@@ -155,7 +161,10 @@ namespace viennacl
       template <> struct op_type_info<op_norm_1                  >      { enum { id = OPERATION_UNARY_NORM_1_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_norm_2                  >      { enum { id = OPERATION_UNARY_NORM_2_TYPE,       family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
       template <> struct op_type_info<op_norm_inf                >      { enum { id = OPERATION_UNARY_NORM_INF_TYPE,     family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
-      template <> struct op_type_info<op_trans                   >      { enum { id = OPERATION_UNARY_TRANS_TYPE,        family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };
+
+      template <> struct op_type_info<op_trans                   >      { enum { id = OPERATION_UNARY_TRANS_TYPE,        family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_INTERPRETATION_MODIFIER_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_row_wise                >      { enum { id = OPERATION_UNARY_ROW_WISE_TYPE,        family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_INTERPRETATION_MODIFIER_TYPE_SUBFAMILY }; };
+      template <> struct op_type_info<op_column_wise                >      { enum { id = OPERATION_UNARY_COLUMN_WISE_TYPE,        family = OPERATION_UNARY_TYPE_FAMILY, subfamily = OPERATION_INTERPRETATION_MODIFIER_TYPE_SUBFAMILY }; };
 
       // binary operations
 

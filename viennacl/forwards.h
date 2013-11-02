@@ -133,6 +133,12 @@ namespace viennacl
   /** @brief A tag class representing a matrix given by a vector placed on a certain (off-)diagonal */
   struct op_vector_diag {};
 
+  /** @brief A tag class representing the interpretation of a matrix as a set of row vectors */
+  struct op_row_wise{ };
+
+  /** @brief A tag class representing the interpretation of a matrix as a set of column vectors */
+  struct op_column_wise{ };
+
   /** @brief A tag class representing the extraction of a matrix row to a vector */
   struct op_row {};
 
