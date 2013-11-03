@@ -118,6 +118,8 @@ namespace viennacl
       OPERATION_BINARY_ELEMENT_LESS_TYPE,
       OPERATION_BINARY_ELEMENT_LEQ_TYPE,
       OPERATION_BINARY_ELEMENT_POW_TYPE,
+      OPERATION_BINARY_ELEMENT_FMAX_TYPE,
+      OPERATION_BINARY_ELEMENT_FMIN_TYPE,
 
       //structurewise functions
       OPERATION_BINARY_MAT_VEC_PROD_TYPE,
@@ -188,6 +190,9 @@ namespace viennacl
       template <> struct op_type_info<op_element_binary<op_less> >      { enum { id = OPERATION_BINARY_ELEMENT_LESS_TYPE, family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY  }; };
       template <> struct op_type_info<op_element_binary<op_geq> >       { enum { id = OPERATION_BINARY_ELEMENT_GEQ_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY  }; };
       template <> struct op_type_info<op_element_binary<op_leq> >       { enum { id = OPERATION_BINARY_ELEMENT_LEQ_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY  }; };
+
+      template <> struct op_type_info<op_element_binary<op_fmax> >       { enum { id = OPERATION_BINARY_ELEMENT_FMAX_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY  }; };
+      template <> struct op_type_info<op_element_binary<op_fmin> >       { enum { id = OPERATION_BINARY_ELEMENT_FMIN_TYPE,  family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY  }; };
 
       //structurewise function
       template <> struct op_type_info<op_prod>                          { enum { id = OPERATION_BINARY_MAT_VEC_PROD_TYPE, family = OPERATION_BINARY_TYPE_FAMILY, subfamily = OPERATION_STRUCTUREWISE_FUNCTION_TYPE_SUBFAMILY }; };

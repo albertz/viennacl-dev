@@ -34,6 +34,7 @@
 #include "viennacl/generator/utils.hpp"
 
 #include "viennacl/generator/templates/template_base.hpp"
+#include "viennacl/generator/templates/reduction_utils.hpp"
 
 #include "viennacl/tools/tools.hpp"
 
@@ -69,45 +70,6 @@ namespace viennacl{
           }
         }
 
-        static void reduction_computation(utils::kernel_generation_stream & os, std::string const & acc, std::string const & val, scheduler::op_element const & op){
-            os << acc << "=";
-            if(op.type_subfamily==scheduler::OPERATION_ELEMENTWISE_FUNCTION_TYPE_SUBFAMILY)
-                os << detail::generate(op.type) << "(" << acc << "," << val << ")";
-            else
-                os << "(" << acc << ")" << detail::generate(op.type)  << "(" << val << ")";
-            os << ";" << std::endl;
-
-        }
-
-        static void reduce_local_memory(utils::kernel_generation_stream & stream, std::size_t size, std::vector<std::string> const & bufs, std::vector<scheduler::op_element> const & rops)
-        {
-            //Reduce local memory
-            for(std::size_t stride = size/2 ; stride>1 ; stride /=2){
-              stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
-              stream << "if(lid < " << stride << "){" << std::endl;
-              stream.inc_tab();
-              for(std::size_t k = 0 ; k < bufs.size() ; ++k){
-                  std::string acc = bufs[k] + "[lid]";
-                  std::string str = bufs[k] + "[lid + " + utils::to_string(stride) + "]";
-                  reduction_computation(stream,acc,str,rops[k]);
-              }
-              stream.dec_tab();
-              stream << "}" << std::endl;
-            }
-
-            //Last reduction and write back to temporary buffer
-            stream << "barrier(CLK_LOCAL_MEM_FENCE); " << std::endl;
-            stream << "if(lid==0){" << std::endl;
-            stream.inc_tab();
-            for(std::size_t k = 0 ; k < bufs.size() ; ++k){
-                std::string acc = bufs[k] + "[0]";
-                std::string str = bufs[k] + "[1]";
-                reduction_computation(stream,acc,str,rops[k]);
-            }
-            stream.dec_tab();;
-            stream << "}" << std::endl;
-        }
-
         void accumulate_step(utils::kernel_generation_stream& stream
                         ,std::vector<detail::mapped_scalar_reduction*> exprs
                         ,std::vector<std::string> const & accs
@@ -140,7 +102,7 @@ namespace viennacl{
                 if(first_step && a==0)
                   stream << accs[k] << "=" << str << ";" << std::endl;
                 else
-                  reduction_computation(stream,accs[k],str,rops[k]);
+                  compute_reduction(stream,accs[k],str,rops[k]);
               }
             }
             else{
@@ -153,7 +115,7 @@ namespace viennacl{
               if(first_step)
                 stream << accs[k] << "=" << str << ";" << std::endl;
               else
-                reduction_computation(stream,accs[k],str,rops[k]);
+                compute_reduction(stream,accs[k],str,rops[k]);
             }
           }
         }
@@ -302,12 +264,13 @@ namespace viennacl{
           stream << "unsigned int lid = get_local_id(0);" << std::endl;
 
           for(std::size_t k = 0 ; k < N ; ++k)
-            stream << scalartypes[k] << " " << accs[k] << " = 0;" << std::endl;
+            stream << scalartypes[k] << " " << accs[k] << " = " << neutral_element(rops[k]) << ";" << std::endl;
 
+          std::string init;
           std::string upper_bound;
           std::string inc;
           if(decomposition_){
-            stream << "unsigned int i = get_global_id(0);" << std::endl;
+            init = "get_global_id(0)";
             upper_bound = "N";
             inc = "get_global_size(0)";
           }
@@ -315,24 +278,12 @@ namespace viennacl{
             stream << "unsigned int chunk_size = (N + get_num_groups(0)-1)/get_num_groups(0);" << std::endl;
             stream << "unsigned int chunk_start = get_group_id(0)*chunk_size;" << std::endl;
             stream << "unsigned int chunk_end = min(chunk_start+chunk_size, N);" << std::endl;
-            stream << "unsigned int i = chunk_start + get_local_id(0);" << std::endl;
+            init = "chunk_start + get_local_id(0)";
             upper_bound = "chunk_end";
             inc = "get_local_size(0)";
           }
 
-          stream << "if(i < " << upper_bound << "){" << std::endl;
-          stream.inc_tab();
-          accumulate_step(stream,exprs,accs,rops,true,"i");
-          stream << "i+=" << inc << ";" << std::endl;
-          stream.dec_tab();
-          stream << "}" << std::endl;
-
-
-          if(decomposition_)
-            stream << "for( ; i < N ; i += get_global_size(0)){" << std::endl;
-          else
-            stream << "for(; i < chunk_end ; i += get_local_size(0)){" << std::endl;
-
+          stream << "for(unsigned int i = " << init << "; i < " << upper_bound << " ; i += " << inc << "){" << std::endl;
           stream.inc_tab();
           accumulate_step(stream,exprs,accs,rops,false,"i");
           stream.dec_tab();
@@ -344,10 +295,10 @@ namespace viennacl{
             stream << "__local " << scalartypes[k] << " " << local_buffers_names[k] << "[" << local_size_1_ << "];" << std::endl;
 
           for(std::size_t k = 0 ; k < N ; ++k)
-            stream << local_buffers_names[k] << "[lid] = sum" << k << ";" << std::endl;
+            stream << local_buffers_names[k] << "[lid] = " << accs[k] << ";" << std::endl;
 
           //Reduce and write to temporary buffers
-          reduce_local_memory(stream, local_size_1_,local_buffers_names,rops);
+          reduce_1d_local_memory(stream, local_size_1_,local_buffers_names,rops);
 
           stream << "if(lid==0){" << std::endl;
           stream.inc_tab();
@@ -385,21 +336,21 @@ namespace viennacl{
             stream << "__local " << scalartypes[k] << " " << local_buffers_names[k] << "[" << local_size_1_ << "];" << std::endl;
 
           for(std::size_t k = 0 ; k < local_buffers_names.size() ; ++k)
-            stream << scalartypes[0] << " " << accs[k] << " = 0;" << std::endl;
+            stream << scalartypes[0] << " " << accs[k] << " = " << neutral_element(rops[k]) << ";" << std::endl;
 
           stream << "for(unsigned int i = lid ; i < " << num_groups_ << " ; i += get_local_size(0)){" << std::endl;
           stream.inc_tab();
           for(std::size_t k = 0 ; k < N ; ++k)
-            reduction_computation(stream,accs[k],"temp"+utils::to_string(k)+"[i]",rops[k]);
+            compute_reduction(stream,accs[k],"temp"+utils::to_string(k)+"[i]",rops[k]);
           stream.dec_tab();
           stream << "}" << std::endl;
 
           for(std::size_t k = 0 ; k < local_buffers_names.size() ; ++k)
-             stream << local_buffers_names[k] << "[lid] = sum" << k << ";" << std::endl;
+             stream << local_buffers_names[k] << "[lid] = " << accs[k] << ";" << std::endl;
 
 
           //Reduce and write final result
-          reduce_local_memory(stream, local_size_1_,local_buffers_names,rops);
+          reduce_1d_local_memory(stream, local_size_1_,local_buffers_names,rops);
           for(std::size_t k = 0 ; k < N ; ++k)
             exprs[k]->access_name(local_buffers_names[k]+"[0]");
 

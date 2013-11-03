@@ -65,6 +65,9 @@ namespace viennacl{
           case OPERATION_BINARY_ELEMENT_LESS_TYPE : return "isless";
           case OPERATION_BINARY_ELEMENT_LEQ_TYPE : return "islessequal";
 
+          case OPERATION_BINARY_ELEMENT_FMAX_TYPE : return "fmax";
+          case OPERATION_BINARY_ELEMENT_FMIN_TYPE : return "fmin";
+
           //Unary
           case OPERATION_BINARY_REDUCE_TYPE : return "reduce";
 
