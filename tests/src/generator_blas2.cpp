@@ -33,7 +33,7 @@
 #define VIENNACL_WITH_UBLAS 1
 
 //#define VIENNACL_DEBUG_ALL
-#define VIENNACL_DEBUG_BUILD
+//#define VIENNACL_DEBUG_BUILD
 #include "viennacl/vector.hpp"
 #include "viennacl/matrix.hpp"
 
@@ -101,8 +101,8 @@ int test( Epsilon const& epsilon) {
     ublas::matrix<NumericT> cC;
     ublas::matrix<NumericT> cD;
 
-    unsigned int size1 = 66;
-    unsigned int size2 = 66;
+    unsigned int size1 = 762;
+    unsigned int size2 = 663;
 
     cA.resize(size1,size2);
     cx.resize(size2);
@@ -148,23 +148,23 @@ int test( Epsilon const& epsilon) {
 
 
     // --------------------------------------------------------------------------
-//    {
-//        std::cout << "y = A*x..." << std::endl;
-//        cy     =  ublas::prod(cA,cx);
-//        viennacl::scheduler::statement statement(y, viennacl::op_assign(), viennacl::linalg::prod(A,x));
-//        generator::generate_enqueue_statement(statement, statement.array()[0]);
-//        viennacl::backend::finish();
-//        CHECK_RESULT(cy,y,y=A*x)
-//    }
+    {
+        std::cout << "y = A*x..." << std::endl;
+        cy     =  ublas::prod(cA,cx);
+        viennacl::scheduler::statement statement(y, viennacl::op_assign(), viennacl::linalg::prod(A,x));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cy,y,y=A*x)
+    }
 
-//    {
-//        std::cout << "y = trans(A)*x..." << std::endl;
-//        cy     =  ublas::prod(trans(cA),cx);
-//        viennacl::scheduler::statement statement(y, viennacl::op_assign(), viennacl::linalg::prod(trans(A),x));
-//        generator::generate_enqueue_statement(statement, statement.array()[0]);
-//        viennacl::backend::finish();
-//        CHECK_RESULT(cy,y,y=trans(A)*x)
-//    }
+    {
+        std::cout << "x = trans(A)*y..." << std::endl;
+        cx     =  ublas::prod(trans(cA),cy);
+        viennacl::scheduler::statement statement(x, viennacl::op_assign(), viennacl::linalg::prod(trans(A),y));
+        generator::generate_enqueue_statement(statement, statement.array()[0]);
+        viennacl::backend::finish();
+        CHECK_RESULT(cx,x,x=trans(A)*y)
+    }
 
     {
         std::cout << "y = reduce_rows<add>(A)..." << std::endl;
@@ -181,37 +181,20 @@ int test( Epsilon const& epsilon) {
         CHECK_RESULT(cy,y,y = reduce_rows<max>(A))
     }
 
-
     {
-        std::cout << "y = reduce_rows<mult>(A)..." << std::endl;
-        for(unsigned int i = 0 ; i < size1 ; ++i){
-            NumericT acc = cA(i,0);
-            for(unsigned int j = 1 ; j < size2 ; ++j){
-                acc *= cA(i,j);
+        std::cout << "x = reduce_columns<add>(A)..." << std::endl;
+        for(unsigned int j = 0 ; j < size2 ; ++j){
+            NumericT acc = cA(0,j);
+            for(unsigned int i = 1 ; i < size1 ; ++i){
+                acc += cA(i,j);
             }
-            cy(i) = acc;
+            cx(j) = acc;
         }
-        viennacl::scheduler::statement statement(y, viennacl::op_assign(), viennacl::linalg::reduce<viennacl::op_mult>(viennacl::row_wise(A)));
+        viennacl::scheduler::statement statement(x, viennacl::op_assign(), viennacl::linalg::reduce<viennacl::op_add>(viennacl::column_wise(A)));
         generator::generate_enqueue_statement(statement, statement.array()[0]);
         viennacl::backend::finish();
-        CHECK_RESULT(cy,y,y = reduce_rows<max>(A))
+        CHECK_RESULT(cx,x,x = reduce_columns<max>(A))
     }
-
-//    {
-//        std::cout << "x = reduce_cols<max>(A)..." << std::endl;
-//        for(unsigned int j = 0 ; j < size2 ; ++j){
-//            NumericT current_max = -INFINITY;
-//            for(unsigned int i = 0 ; i < size1 ; ++i){
-//                current_max = std::max(current_max,cA(i,j));
-//            }
-//            cx(j) = current_max;
-//        }
-//        generator::custom_operation op;
-//        op.add(dv_t(x) = generator::reduce_cols<generator::fmax_type>(dm_t(A)));
-//        op.execute();
-//        viennacl::backend::finish();
-//        CHECK_RESULT(cx,x,x = reduce_cols<max>(A))
-//    }
 
 
     return retval;
@@ -243,7 +226,7 @@ int main() {
         std::cout << "  --------------" << std::endl;
         std::cout << "  Column-Major"   << std::endl;
         std::cout << "  --------------" << std::endl;
-        //retval &= test<float, viennacl::column_major> (epsilon);
+        retval &= test<float, viennacl::column_major> (epsilon);
 
         if ( retval == EXIT_SUCCESS )
             std::cout << "# Test passed" << std::endl;
@@ -264,11 +247,11 @@ int main() {
         std::cout << "  --------------" << std::endl;
         std::cout << "  Row-Major"      << std::endl;
         std::cout << "  --------------" << std::endl;
-        //retval = test<double, viennacl::row_major> (epsilon);
+        retval = test<double, viennacl::row_major> (epsilon);
         std::cout << "  --------------" << std::endl;
         std::cout << "  Column-Major"   << std::endl;
         std::cout << "  --------------" << std::endl;
-        //retval &= test<double, viennacl::column_major> (epsilon);
+        retval &= test<double, viennacl::column_major> (epsilon);
 
         if ( retval == EXIT_SUCCESS )
             std::cout << "# Test passed" << std::endl;

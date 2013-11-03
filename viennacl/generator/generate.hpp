@@ -55,6 +55,12 @@ namespace viennacl{
         typedef std::vector<representation_node_type> statements_type;
         typedef std::map<forced_profile_key_type, tools::shared_ptr<profile_base> > forced_profiles_type;
 
+        static scheduler::statement_node leftmost_node(scheduler::statement const & statement, scheduler::statement_node const * root_node){
+          while(root_node->lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY)
+            root_node = &statement.array()[root_node->lhs.node_index];
+          return *root_node;
+        }
+
         /** @brief Check for the data access flow of a node.
         *
         * Row-major + Trans and Col-Major + NoTrans are equal in this regard. This prevents too much code duplication in the kernel templates.
@@ -100,17 +106,17 @@ namespace viennacl{
           }
           else if(descriptor.type_family == VECTOR_SAXPY_FAMILY && is_vector_reduction(statement,root_node)){
               descriptor.type_family=VECTOR_REDUCE_FAMILY;
-
-//              if(root_node.op.type==scheduler::OPERATION_BINARY_REDUCE_TYPE){
-//                if(root_node.lhs.type_family==scheduler::COMPOSITE_OPERATION_FAMILY){
-//                  if(statement.array()[root_node.lhs.node_index].op.type==scheduler:)
-//                }
-//              }
-
-              if(is_lhs_flow_transposed(statement,root_node))
+              scheduler::statement_node leftmost = leftmost_node(statement,&root_node);
+              if(leftmost.lhs.subtype==scheduler::DENSE_ROW_MATRIX_TYPE || leftmost.lhs.subtype==scheduler::DENSE_COL_MATRIX_TYPE){
+                if(leftmost.op.type==scheduler::OPERATION_UNARY_TRANS_TYPE || leftmost.op.type==scheduler::OPERATION_UNARY_COLUMN_WISE_TYPE)
                   descriptor.type=VECTOR_REDUCE_Tx_TYPE;
-              else
+                else
                   descriptor.type=VECTOR_REDUCE_Nx_TYPE;
+              }
+              else{
+                descriptor.type_family=INVALID_EXPRESSION_FAMILY;
+                descriptor.type=INVALID_EXPRESSION_TYPE;
+              }
           }
           else if(descriptor.type_family == MATRIX_SAXPY_FAMILY && root_node.op.type == OPERATION_BINARY_MAT_MAT_PROD_TYPE){
               descriptor.type_family=MATRIX_PRODUCT_FAMILY;

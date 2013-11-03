@@ -918,6 +918,14 @@ namespace viennacl
     return vector_expression< const matrix_base<NumericT, F>, const unsigned int, op_column>(A, j);
   }
 
+  // column_wise():
+  template<typename NumericT, typename F>
+  matrix_expression< const matrix_base<NumericT, F>, const matrix_base<NumericT, F>, op_column_wise>
+  column_wise(const matrix_base<NumericT, F> & A)
+  {
+    return matrix_expression< const matrix_base<NumericT, F>, const matrix_base<NumericT, F>, op_column_wise>(A,A);
+  }
+
   /////////////////////// transfer operations: //////////////////////////////////////
 
   //
